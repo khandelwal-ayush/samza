@@ -27,6 +27,7 @@ import java.util.Optional;
 import org.apache.samza.SamzaException;
 import org.apache.samza.application.descriptors.ApplicationDescriptor;
 import org.apache.samza.application.descriptors.ApplicationDescriptorImpl;
+import org.apache.samza.clustermanager.StandbyTaskUtil;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.ShellCommandConfig;
@@ -107,8 +108,14 @@ public class ContainerLaunchUtil {
         + "Ignore this message. ");
     try {
       DiagnosticsUtil.writeMetadataFile(jobName, jobId, containerId, executionEnvContainerId, config);
-      run(appDesc, jobName, jobId, containerId, executionEnvContainerId, samzaEpochId, jobModel, config,
-          buildExternalContext(config));
+      if (StandbyTaskUtil.isStandbyContainer(containerId)) {
+        log.info("Skipping external context for standby container: {}", containerId);
+        run(appDesc, jobName, jobId, containerId, executionEnvContainerId, samzaEpochId, jobModel, config,
+            Optional.empty());
+      } else {
+        run(appDesc, jobName, jobId, containerId, executionEnvContainerId, samzaEpochId, jobModel, config,
+            buildExternalContext(config));
+      }
     } finally {
       // Linkedin-only Offspring shutdown
       ProcessGeneratorHolder.getInstance().stop();
