@@ -53,14 +53,14 @@ class TransactionalStateTaskStorageManager(
 
   def flush(): Map[SystemStreamPartition, Option[String]] = {
     debug("Flushing stores.")
-    containerStorageManager.getNonDaVinciStores(taskName).asScala.values.foreach(_.flush)
+    containerStorageManager.getAllStores(taskName).asScala.values.foreach(_.flush)
     getNewestChangelogSSPOffsets(taskName, storeChangelogs, partition, systemAdmins)
   }
 
   def checkpoint(checkpointId: CheckpointId, newestChangelogOffsets: Map[SystemStreamPartition, Option[String]]): Unit = {
     debug("Checkpointing stores.")
 
-    val checkpointPaths = containerStorageManager.getNonDaVinciStores(taskName).asScala
+    val checkpointPaths = containerStorageManager.getAllStores(taskName).asScala
       .filter { case (storeName, storeEngine) =>
         storeEngine.getStoreProperties.isLoggedStore && storeEngine.getStoreProperties.isPersistedToDisk}
       .flatMap { case (storeName, storeEngine) => {
