@@ -1,14 +1,14 @@
 ---
-name: Rayman Preet Singh
+name: Ke Wu
 website:
-linkedin: https://www.linkedin.com/in/rayman-preet-singh-225a5b121/
+linkedin: https://www.linkedin.com/in/kwu
 twitter:
 image:
-github: rmatharu
+github: kw2542
 pmc_member: false
 job_title:
 samza_title:
-order: 125
+order: 120
 ---
 <!--
    Licensed to the Apache Software Foundation (ASF) under one or more
