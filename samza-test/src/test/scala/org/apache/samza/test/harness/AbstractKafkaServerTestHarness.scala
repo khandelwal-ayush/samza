@@ -106,7 +106,7 @@ abstract class AbstractKafkaServerTestHarness extends AbstractZookeeperTestHarne
         case e: Exception =>
           println("Exception in setup")
           println(e)
-          throw new AssertionError(e.getMessage)
+          TestUtils.fail(e.getMessage)
       }
     }.toBuffer
     brokerList = TestUtils.getBrokerListStrFromServers(servers, securityProtocol)

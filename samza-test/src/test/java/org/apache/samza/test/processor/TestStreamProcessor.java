@@ -262,14 +262,15 @@ public class TestStreamProcessor extends IntegrationTestHarness {
           bootstrapServer,
           "group",
           "earliest",
-          true,
-          false,
-          500,
+          4096L,
+          "org.apache.kafka.clients.consumer.RangeAssignor",
+          30000,
           SecurityProtocol.PLAINTEXT,
           Option$.MODULE$.<File>empty(),
           Option$.MODULE$.<Properties>empty(),
           new StringDeserializer(),
-          new ByteArrayDeserializer());
+          new ByteArrayDeserializer(),
+          Option$.MODULE$.<Properties>empty());
     }
 
     private void initProcessorListener() {
@@ -290,16 +291,16 @@ public class TestStreamProcessor extends IntegrationTestHarness {
           60 * 1000L,
           1024L * 1024L,
           0,
-          30 * 1000,
           0,
-          16384,
-          "none",
-          20 * 1000,
+          5 * 1000,
           SecurityProtocol.PLAINTEXT,
           null,
           Option$.MODULE$.<Properties>apply(new Properties()),
           new StringSerializer(),
-          new ByteArraySerializer());
+          new ByteArraySerializer(),
+          Option$.MODULE$.<Properties>apply(new Properties()),
+          // Linkedin-specific: the Linkedin version of TestUtils.createProducer has an extra deliveryTimeoutMs argument
+          30 * 1000);
     }
   }
 }
