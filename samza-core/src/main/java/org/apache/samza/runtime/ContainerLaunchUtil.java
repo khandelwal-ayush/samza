@@ -196,6 +196,8 @@ public class ContainerLaunchUtil {
         log.error("Container stopped with Exception. Exiting process now.", containerRunnerException);
         System.exit(1);
       }
+    } catch (Throwable e) {
+      log.error("Container stopped with Exception. ", containerRunnerException);
     } finally {
       coordinatorStreamStore.close();
     }
