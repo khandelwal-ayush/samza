@@ -97,6 +97,9 @@ public class ContainerLaunchUtil {
     ProcessGeneratorHolder.getInstance().createGenerator(config);
     ProcessGeneratorHolder.getInstance().start();
     isContainerLaunched = true;
+    // This log line is needed to wire in Log appenders prior to ExternalContext to avoid offspring errors
+    // see LISAMZA-21269
+    log.info("Container has been launched. Setting isContainerLaunched = true");
     try {
       DiagnosticsUtil.writeMetadataFile(jobName, jobId, containerId, execEnvContainerId, config);
       if (StandbyTaskUtil.isStandbyContainer(containerId)) {
