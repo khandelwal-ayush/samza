@@ -99,7 +99,8 @@ public class ContainerLaunchUtil {
     isContainerLaunched = true;
     // This log line is needed to wire in Log appenders prior to ExternalContext to avoid offspring errors
     // see LISAMZA-21269
-    log.info("Container has been launched. Setting isContainerLaunched = true");
+    log.warn("Container launched. Sample log to initiate logging-topic creation. "
+        + "Ignore this message. ");
     try {
       DiagnosticsUtil.writeMetadataFile(jobName, jobId, containerId, execEnvContainerId, config);
       if (StandbyTaskUtil.isStandbyContainer(containerId)) {
