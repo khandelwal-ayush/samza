@@ -134,6 +134,7 @@ public class ContainerStorageManager {
   private final Map<TaskName, TaskInstanceMetrics> taskInstanceMetrics;
   private final Map<TaskName, TaskInstanceCollector> taskInstanceCollectors;
   private final Map<TaskName, Map<String, StorageEngine>> inMemoryStores; // subset of taskStores after #start()
+  private final Map<TaskName, Map<String, StorageEngine>> daVinciStores; // subset of taskStores after #start()
   private Map<TaskName, Map<String, StorageEngine>> taskStores; // Will be available after #start()
 
   private final Map<String, SystemConsumer> storeConsumers; // Mapping from store name to SystemConsumers
@@ -277,6 +278,15 @@ public class ContainerStorageManager {
         })
         .collect(Collectors.toSet());
     this.inMemoryStores = createTaskStores(inMemoryStoreNames,
+        this.containerModel, jobContext, containerContext, storageEngineFactories, serdes, taskInstanceMetrics, taskInstanceCollectors);
+    Set<String> daVinciStoreNames = storageEngineFactories.keySet().stream()
+        .filter(storeName -> {
+          Optional<String> storeFactory = storageConfig.getStorageFactoryClassName(storeName);
+          return storeFactory.isPresent() && !storeFactory.get()
+              .equals(DAVINCI_KV_STORAGE_ENGINE_FACTORY);
+        })
+        .collect(Collectors.toSet());
+    this.daVinciStores = createTaskStores(daVinciStoreNames,
         this.containerModel, jobContext, containerContext, storageEngineFactories, serdes, taskInstanceMetrics, taskInstanceCollectors);
 
     Set<String> containerChangelogSystems = this.changelogSystemStreams.values().stream()
@@ -788,12 +798,8 @@ public class ContainerStorageManager {
   private void restoreStores() throws InterruptedException {
     LOG.info("Store Restore started");
     Set<TaskName> activeTasks = getTasks(containerModel, TaskMode.Active).keySet();
-    // TODO HIGH dchen verify davinci lifecycle
     // Find all non-side input stores
-    Set<String> nonSideInputStoreNames = storageEngineFactories.keySet()
-        .stream()
-        .filter(storeName -> !sideInputStoreNames.contains(storeName))
-        .collect(Collectors.toSet());
+    Set<String> nonSideInputNonDaVinciStores = getNonSideInputNonDaVinciStoresNames();
 
     // Obtain the checkpoints for each task
     Map<TaskName, Map<String, TaskRestoreManager>> taskRestoreManagers = new HashMap<>();
@@ -806,8 +812,8 @@ public class ContainerStorageManager {
         LOG.info("Obtained checkpoint: {} for state restore for taskName: {}", taskCheckpoint, taskName);
       }
       taskCheckpoints.put(taskName, taskCheckpoint);
-      Map<String, Set<String>> backendFactoryStoreNames = getBackendFactoryStoreNames(taskCheckpoint, nonSideInputStoreNames,
-          new StorageConfig(config));
+      Map<String, Set<String>> backendFactoryStoreNames = getBackendFactoryStoreNames(taskCheckpoint,
+          nonSideInputNonDaVinciStores, new StorageConfig(config));
       Map<String, TaskRestoreManager> taskStoreRestoreManagers = createTaskRestoreManagers(restoreStateBackendFactories,
           backendFactoryStoreNames, clock, samzaContainerMetrics, taskName, taskModel);
       taskRestoreManagers.put(taskName, taskStoreRestoreManagers);
@@ -854,10 +860,17 @@ public class ContainerStorageManager {
     this.storeConsumers.values().stream().distinct().forEach(SystemConsumer::stop);
 
     // Now create persistent non side input stores in read-write mode, leave non-persistent stores as-is
-    this.taskStores = createTaskStores(nonSideInputStoreNames, this.containerModel, jobContext, containerContext,
+    this.taskStores = createTaskStores(nonSideInputNonDaVinciStores, this.containerModel, jobContext, containerContext,
         storageEngineFactories, serdes, taskInstanceMetrics, taskInstanceCollectors);
     // Add in memory stores
     this.inMemoryStores.forEach((taskName, stores) -> {
+      if (!this.taskStores.containsKey(taskName)) {
+        taskStores.put(taskName, new HashMap<>());
+      }
+      taskStores.get(taskName).putAll(stores);
+    });
+    // Add daVinci stores
+    this.daVinciStores.forEach((taskName, stores) -> {
       if (!this.taskStores.containsKey(taskName)) {
         taskStores.put(taskName, new HashMap<>());
       }
@@ -1024,15 +1037,39 @@ public class ContainerStorageManager {
   }
 
   /**
-   * Get all {@link StorageEngine} instance used by a given task exceptDaVinciStores
-   * @param taskName
-   * @return
+   * Get all non daVinciStorage engines for a given task.
+   * @param taskName the task name, all stores for which are desired.
+   * @return map of non-DaVinci stores used by the given task, indexed by storename
    */
   public Map<String, StorageEngine> getNonDaVinciStores(TaskName taskName) {
+    if (!isStarted) {
+      throw new SamzaException(String.format(
+          "Attempting to access stores for task %s before ContainerStorageManager is started.", taskName));
+    }
     StorageConfig storageConfig = new StorageConfig(config);
-    return taskStores.get(taskName).entrySet().stream().
-        filter(e -> !StringUtils.equals(
-            storageConfig.getStorageFactoryClassName(e.getKey()).get(), DAVINCI_KV_STORAGE_ENGINE_FACTORY)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    return this.taskStores.get(taskName).entrySet().stream()
+        .filter(e ->
+            !StringUtils.equals(storageConfig.getStorageFactoryClassName(e.getKey()).get(), DAVINCI_KV_STORAGE_ENGINE_FACTORY))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
+  /**
+   * Get all {@link StorageEngine} instance used by a given task except DaVinciStores and side inputs
+   */
+  public Set<String> getNonSideInputNonDaVinciStoresNames() {
+    StorageConfig storageConfig = new StorageConfig(config);
+    // Find all non-daVinci stores from non-side input stores
+    return getNonSideInputStoreNames().stream()
+        .filter(e ->
+            !StringUtils.equals(storageConfig.getStorageFactoryClassName(e).get(), DAVINCI_KV_STORAGE_ENGINE_FACTORY))
+        .collect(Collectors.toSet());
+  }
+
+  private Set<String> getNonSideInputStoreNames() {
+    // Find all non-side input stores
+    return storageEngineFactories.keySet().stream()
+        .filter(storeName -> !sideInputStoreNames.contains(storeName))
+        .collect(Collectors.toSet());
   }
 
   /**

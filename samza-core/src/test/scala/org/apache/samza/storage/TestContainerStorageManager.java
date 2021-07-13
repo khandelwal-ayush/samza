@@ -61,7 +61,6 @@ import org.apache.samza.system.SystemStreamPartition;
 import org.apache.samza.util.SystemClock;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -514,12 +513,13 @@ public class TestContainerStorageManager {
   }
 
   @Test
-  @Ignore
   public void testDaVinciStoreFiltering() throws InterruptedException {
-    this.containerStorageManager.getNonDaVinciStores(new TaskName("task 0")).entrySet().forEach(e -> {
-      Assert.assertNotEquals(e.getKey(), "davinci");
-      Assert.assertEquals(e.getKey(), "store");
+    this.containerStorageManager.getNonSideInputNonDaVinciStoresNames().forEach(e -> {
+      Assert.assertNotEquals("davinci", e);
+      Assert.assertEquals("store", e);
     });
+    this.containerStorageManager.start();
     Assert.assertNotNull(this.containerStorageManager.getAllStores(new TaskName("task 0")).get(DAVINCI_STORE_NAME));
+    this.containerStorageManager.shutdown();
   }
 }

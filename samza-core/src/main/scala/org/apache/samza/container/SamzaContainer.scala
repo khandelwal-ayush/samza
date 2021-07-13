@@ -27,7 +27,6 @@ import java.util
 import java.util.concurrent._
 import java.util.function.Consumer
 import java.util.{Base64, Optional}
-import com.google.common.annotations.VisibleForTesting
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import org.apache.samza.SamzaException
 import org.apache.samza.checkpoint.{CheckpointListener, OffsetManager, OffsetManagerMetrics}

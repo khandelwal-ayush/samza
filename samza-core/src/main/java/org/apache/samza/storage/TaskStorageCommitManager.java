@@ -90,7 +90,7 @@ public class TaskStorageCommitManager {
 
   public void init() {
     // Assuming that container storage manager has already started and created to stores
-    storageEngines = containerStorageManager.getAllStores(taskName);
+    storageEngines = containerStorageManager.getNonDaVinciStores(taskName);
     if (checkpointManager != null) {
       Checkpoint checkpoint = checkpointManager.readLastCheckpoint(taskName);
       LOG.debug("Last checkpoint on start for task: {} is: {}", taskName, checkpoint);
