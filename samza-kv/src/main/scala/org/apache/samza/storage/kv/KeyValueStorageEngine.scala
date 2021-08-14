@@ -125,10 +125,10 @@ class KeyValueStorageEngine[K, V](
    */
   def restore(iterator: ChangelogSSPIterator) {
     info("Restoring entries for store: " + storeName + " in directory: " + storeDir.toString)
-    var restoredMessages = 0
-    var restoredBytes = 0
-    var trimmedMessages = 0
-    var trimmedBytes = 0
+    var restoredMessages: Long = 0
+    var restoredBytes: Long = 0
+    var trimmedMessages: Long = 0
+    var trimmedBytes: Long = 0
     var previousMode = ChangelogSSPIterator.Mode.RESTORE
 
     val batch = new java.util.ArrayList[Entry[Array[Byte], Array[Byte]]](batchSize)

@@ -51,11 +51,11 @@ class KeyValueStorageEngineMetrics(
   val rangeNs = newTimer("range-ns")
   val snapshotNs = newTimer("snapshot-ns")
 
-  val restoredMessagesGauge = newGauge("restored-messages", 0)
-  val trimmedMessagesGauge = newGauge("trimmed-messages", 0)
+  val restoredMessagesGauge = newGauge("restored-messages", 0L)
+  val trimmedMessagesGauge = newGauge("trimmed-messages", 0L)
 
-  val restoredBytesGauge = newGauge("restored-bytes", 0)
-  val trimmedBytesGauge = newGauge("trimmed-bytes", 0)
+  val restoredBytesGauge = newGauge("restored-bytes", 0L)
+  val trimmedBytesGauge = newGauge("trimmed-bytes", 0L)
 
   override def getPrefix = storeName + "-"
 }
