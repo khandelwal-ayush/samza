@@ -71,6 +71,7 @@ import org.apache.samza.util.SystemClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 /**
  * Implements a JobCoordinator that is completely independent of the underlying cluster
  * manager system. This {@link ClusterBasedJobCoordinator} handles functionality common
@@ -202,8 +203,8 @@ public class ClusterBasedJobCoordinator {
     // ProcessGeneratorHolder is expected to have already started before the constructor is being invoked.
 
     // build a JobModelManager and ChangelogStreamManager and perform partition assignments.
-    this.changelogStreamManager =
-        new ChangelogStreamManager(new NamespaceAwareCoordinatorStreamStore(metadataStore, SetChangelogMapping.TYPE));
+    this.changelogStreamManager = new ChangelogStreamManager(
+        new NamespaceAwareCoordinatorStreamStore(metadataStore, SetChangelogMapping.TYPE));
     this.jobModelManager =
         JobModelManager.apply(config, changelogStreamManager.readPartitionMapping(), metadataStore, metrics);
 
@@ -238,8 +239,8 @@ public class ClusterBasedJobCoordinator {
     containerPlacementRequestAllocator =
         new ContainerPlacementRequestAllocator(containerPlacementMetadataStore, containerProcessManager,
             new ApplicationConfig(config));
-    this.containerPlacementRequestAllocatorThread = new Thread(containerPlacementRequestAllocator,
-        "Samza-" + ContainerPlacementRequestAllocator.class.getSimpleName());
+    this.containerPlacementRequestAllocatorThread =
+        new Thread(containerPlacementRequestAllocator, "Samza-" + ContainerPlacementRequestAllocator.class.getSimpleName());
   }
 
   /**
@@ -326,7 +327,9 @@ public class ClusterBasedJobCoordinator {
 
       boolean isInterrupted = false;
 
-      while (!containerProcessManager.shouldShutdown() && !checkAndThrowException() && !isInterrupted
+      while (!containerProcessManager.shouldShutdown()
+          && !checkAndThrowException()
+          && !isInterrupted
           && checkcontainerPlacementRequestAllocatorThreadIsAlive()) {
         try {
           Thread.sleep(jobCoordinatorSleepInterval);
@@ -431,18 +434,15 @@ public class ClusterBasedJobCoordinator {
         new JobConfig(config).getMonitorPartitionChangeFrequency(), streamsChanged -> {
       // Fail the jobs with durable state store. Otherwise, application state.status remains UNDEFINED s.t. YARN job will be restarted
       if (hasDurableStores) {
-        LOG.error(
-            "Input topic partition count changed in a job with durable state. Failing the job. " + "Changed topics: {}",
-            streamsChanged.toString());
+        LOG.error("Input topic partition count changed in a job with durable state. Failing the job. " +
+            "Changed topics: {}", streamsChanged.toString());
         state.status = SamzaApplicationState.SamzaAppStatus.FAILED;
       }
-      coordinatorException = new PartitionChangeException(
-          "Input topic partition count changes detected for topics: " + streamsChanged.toString());
+      coordinatorException = new PartitionChangeException("Input topic partition count changes detected for topics: " + streamsChanged.toString());
     }));
   }
 
-  private Optional<StreamRegexMonitor> getInputRegexMonitor(Config config, SystemAdmins systemAdmins,
-      Set<SystemStream> inputStreamsToMonitor) {
+  private Optional<StreamRegexMonitor> getInputRegexMonitor(Config config, SystemAdmins systemAdmins, Set<SystemStream> inputStreamsToMonitor) {
     JobConfig jobConfig = new JobConfig(config);
 
     // if input regex monitor is not enabled return empty
@@ -480,8 +480,8 @@ public class ClusterBasedJobCoordinator {
       public void onInputStreamsChanged(Set<SystemStream> initialInputSet, Set<SystemStream> newInputStreams,
           Map<String, Pattern> regexesMonitored) {
         if (hasDurableStores) {
-          LOG.error("New input system-streams discovered. Failing the job. New input streams: {}"
-              + " Existing input streams: {}", newInputStreams, inputStreamsToMonitor);
+          LOG.error("New input system-streams discovered. Failing the job. New input streams: {}" +
+              " Existing input streams: {}", newInputStreams, inputStreamsToMonitor);
           state.status = SamzaApplicationState.SamzaAppStatus.FAILED;
         }
         coordinatorException = new InputStreamsDiscoveredException("New input streams discovered: " + newInputStreams);

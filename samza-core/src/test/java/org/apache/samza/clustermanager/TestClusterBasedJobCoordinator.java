@@ -72,8 +72,12 @@ import static org.powermock.api.mockito.PowerMockito.mock;
  * Tests for {@link ClusterBasedJobCoordinator}
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({CoordinatorStreamUtil.class, ProcessGeneratorHolder.class, ClusterBasedJobCoordinatorRunner.class,
-    CoordinatorStreamStore.class, RemoteJobPlanner.class})
+@PrepareForTest({
+    CoordinatorStreamUtil.class,
+    ProcessGeneratorHolder.class,
+    ClusterBasedJobCoordinatorRunner.class,
+    CoordinatorStreamStore.class,
+    RemoteJobPlanner.class})
 public class TestClusterBasedJobCoordinator {
 
   private Map<String, String> configMap;
@@ -94,8 +98,7 @@ public class TestClusterBasedJobCoordinator {
     configMap.put("job.coordinator.monitor-partition-change.frequency.ms", "1");
 
     MockSystemFactory.MSG_QUEUES.put(new SystemStreamPartition("kafka", "topic1", new Partition(0)), new ArrayList<>());
-    MockSystemFactory.MSG_QUEUES.put(
-        new SystemStreamPartition("kafka", "__samza_coordinator_test-job_1", new Partition(0)), new ArrayList<>());
+    MockSystemFactory.MSG_QUEUES.put(new SystemStreamPartition("kafka", "__samza_coordinator_test-job_1", new Partition(0)), new ArrayList<>());
     MockCoordinatorStreamSystemFactory.enableMockConsumerCache();
     PowerMockito.mockStatic(CoordinatorStreamUtil.class);
     when(CoordinatorStreamUtil.getCoordinatorSystemFactory(anyObject())).thenReturn(
@@ -254,13 +257,16 @@ public class TestClusterBasedJobCoordinator {
 
   @Test
   public void testToArgs() {
-    ApplicationConfig appConfig = new ApplicationConfig(new MapConfig(
-        ImmutableMap.of(JobConfig.JOB_NAME, "test1", ApplicationConfig.APP_CLASS, "class1",
-            ApplicationConfig.APP_MAIN_ARGS, "--runner=SamzaRunner --maxSourceParallelism=1024")));
+    ApplicationConfig appConfig = new ApplicationConfig(new MapConfig(ImmutableMap.of(
+        JobConfig.JOB_NAME, "test1",
+        ApplicationConfig.APP_CLASS, "class1",
+        ApplicationConfig.APP_MAIN_ARGS, "--runner=SamzaRunner --maxSourceParallelism=1024"
+    )));
 
-    List<String> expected =
-        Arrays.asList("--config", "job.name=test1", "--config", "app.class=class1", "--runner=SamzaRunner",
-            "--maxSourceParallelism=1024");
+    List<String> expected = Arrays.asList(
+        "--config", "job.name=test1",
+        "--config", "app.class=class1",
+        "--runner=SamzaRunner", "--maxSourceParallelism=1024");
     List<String> actual = Arrays.asList(ClusterBasedJobCoordinatorRunner.toArgs(appConfig));
 
     // cannot assert expected equals to actual as the order can be different.

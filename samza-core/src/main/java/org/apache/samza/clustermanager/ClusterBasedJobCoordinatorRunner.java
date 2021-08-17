@@ -68,7 +68,8 @@ public class ClusterBasedJobCoordinatorRunner {
       try {
         //Read and parse the coordinator system config.
         LOG.info("Parsing submission config {}", submissionEnv);
-        submissionConfig = new MapConfig(SamzaObjectMapper.getObjectMapper().readValue(submissionEnv, Config.class));
+        submissionConfig =
+            new MapConfig(SamzaObjectMapper.getObjectMapper().readValue(submissionEnv, Config.class));
         LOG.info("Using the submission config: {}.", submissionConfig);
       } catch (IOException e) {
         LOG.error("Exception while reading submission config", e);
