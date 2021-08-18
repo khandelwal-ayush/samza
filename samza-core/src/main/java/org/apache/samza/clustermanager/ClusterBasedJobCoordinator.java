@@ -476,17 +476,17 @@ public class ClusterBasedJobCoordinator {
 
     return Optional.of(new StreamRegexMonitor(inputStreamsToMonitor, inputRegexesToMonitor, streamMetadata, metrics,
         jobConfig.getMonitorRegexFrequency(), new StreamRegexMonitor.Callback() {
-      @Override
-      public void onInputStreamsChanged(Set<SystemStream> initialInputSet, Set<SystemStream> newInputStreams,
-          Map<String, Pattern> regexesMonitored) {
-        if (hasDurableStores) {
-          LOG.error("New input system-streams discovered. Failing the job. New input streams: {}" +
-              " Existing input streams: {}", newInputStreams, inputStreamsToMonitor);
-          state.status = SamzaApplicationState.SamzaAppStatus.FAILED;
-        }
-        coordinatorException = new InputStreamsDiscoveredException("New input streams discovered: " + newInputStreams);
-      }
-    }));
+          @Override
+          public void onInputStreamsChanged(Set<SystemStream> initialInputSet, Set<SystemStream> newInputStreams,
+              Map<String, Pattern> regexesMonitored) {
+            if (hasDurableStores) {
+              LOG.error("New input system-streams discovered. Failing the job. New input streams: {}" +
+                  " Existing input streams: {}", newInputStreams, inputStreamsToMonitor);
+              state.status = SamzaApplicationState.SamzaAppStatus.FAILED;
+            }
+            coordinatorException = new InputStreamsDiscoveredException("New input streams discovered: " + newInputStreams);
+          }
+        }));
   }
 
   // The following two methods are package-private and for testing only
