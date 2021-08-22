@@ -22,12 +22,15 @@
 package org.apache.samza.util
 
 import org.apache.samza.testUtils.FileUtil
+import java.io.{EOFException, File, FileInputStream, FileOutputStream, IOException, ObjectInputStream, ObjectOutputStream}
 
-import java.io.{File, FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
 import org.junit.Assert.{assertEquals, assertNull, assertTrue, fail}
 import org.junit.Test
-
 import java.nio.file.{FileAlreadyExistsException, Files, Paths}
+import java.util.concurrent.CountDownLatch
+
+import org.apache.commons.io.FileUtils
+
 import scala.util.Random
 
 class TestFileUtil {
@@ -148,5 +151,62 @@ class TestFileUtil {
     // verify that subdirs can be created via symlinks correctly.
     val tmpSubSubDirPath = Paths.get(FileUtil.TMP_DIR, tmpSubDirName + "-symlink", "subdir")
     fileUtil.createDirectories(tmpSubSubDirPath)
+  }
+
+  @Test
+  @throws[IOException]
+  @throws[InterruptedException]
+  def testConcurrentWriteChecksumToSameDir(): Unit = {
+    val tmpDir = Files.createTempDirectory("testFileUtil").toFile
+    val file = new File(tmpDir, "testFile")
+    val blockingLatch = new CountDownLatch(1)
+    val terminatingLatch = new CountDownLatch(2)
+    val thread1 = new Thread(new Runnable {
+      def run(): Unit = {
+        try blockingLatch.await()
+        catch {
+          case e: InterruptedException =>
+            fail()
+        }
+        val fileUtil = new FileUtil
+        try fileUtil.writeWithChecksum(file, "thread1")
+        catch {
+          case e: Exception =>
+            fail(e.getMessage)
+        }
+        terminatingLatch.countDown()
+      }
+    })
+    val thread2 = new Thread(new Runnable {
+      def run(): Unit = {
+        blockingLatch.countDown()
+        val fileUtil = new FileUtil
+        try fileUtil.writeWithChecksum(file, "thread2")
+        catch {
+          case e: Exception =>
+            fail(e.getMessage)
+        }
+        terminatingLatch.countDown()
+      }
+    })
+    try {
+      thread1.start()
+      thread2.start()
+      terminatingLatch.await()
+      val fis = new FileInputStream(file)
+      val ois = new ObjectInputStream(fis)
+      ois.readLong
+      val offset = ois.readUTF
+      assertTrue("thread1" == offset || "thread2" == offset)
+      try {
+        ois.readLong
+        fail()
+      } catch {
+        case e: EOFException =>
+        // pass
+      }
+      fis.close()
+      ois.close()
+    } finally FileUtils.deleteDirectory(tmpDir)
   }
 }

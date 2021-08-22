@@ -90,7 +90,7 @@ public class TaskStorageCommitManager {
 
   public void init() {
     // Assuming that container storage manager has already started and created to stores
-    storageEngines = containerStorageManager.getNonDaVinciStores(taskName);
+    storageEngines = containerStorageManager.getAllStores(taskName);
     if (checkpointManager != null) {
       Checkpoint checkpoint = checkpointManager.readLastCheckpoint(taskName);
       LOG.debug("Last checkpoint on start for task: {} is: {}", taskName, checkpoint);
@@ -225,7 +225,29 @@ public class TaskStorageCommitManager {
     } else {
       throw new SamzaException("Unsupported checkpoint version: " + checkpoint.getVersion());
     }
+
+    if (containerStorageManager.hasDaVinciStore()) {
+      this.writeFakeOffsetToDaVinciStoreDirectory();
+    }
   }
+
+    /**
+     * Write fake offset to DaVinci store directories to facilitate stale state cleanup.
+     *
+     * Note:
+     * - Currently DaVinci doesn't support store state checkpointing, the purpose of writing a fake offset to disk is
+     *   to provide the LastModifiedTime of OFFSET file that samza-admin can use to clean up stale DaVinci store states.
+     * - DaVinci store directories are created per container, e.g. <logged-store-path>/<jobName-jobId>/davinci/<containerId>,
+     *   all tasks within the same container will write to the same OFFSET file.
+     */
+    @VisibleForTesting
+    void writeFakeOffsetToDaVinciStoreDirectory() {
+      String fakeOffset = taskName.getTaskName(); // use taskName as the fake offset
+      String containerId = containerStorageManager.getContainerId();
+      LOG.debug("Writing fake offset to DaVinci store directory for taskName: {} with fake offset: {}", taskName,
+          fakeOffset);
+      storageManagerUtil.writeOffsetToDaVinciStoreDirectory(durableStoreBaseDir, containerId, fakeOffset);
+    }
 
   /**
    * Performs any post-commit and cleanup actions after the {@link Checkpoint} is successfully written to the

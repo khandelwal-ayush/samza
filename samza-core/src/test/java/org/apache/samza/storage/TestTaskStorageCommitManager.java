@@ -144,7 +144,7 @@ public class TestTaskStorageCommitManager {
         "store2", "blobId2"
     );
 
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(Collections.emptyMap());
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(Collections.emptyMap());
     when(taskBackupManager1.snapshot(newCheckpointId)).thenReturn(factory1Checkpoints);
     when(taskBackupManager2.snapshot(newCheckpointId)).thenReturn(factory2Checkpoints);
 
@@ -234,7 +234,7 @@ public class TestTaskStorageCommitManager {
         "store2", "blobId2"
     );
 
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(storageEngines);
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(storageEngines);
     when(taskBackupManager1.snapshot(newCheckpointId)).thenReturn(factory1Checkpoints);
     when(taskBackupManager1.upload(newCheckpointId, factory1Checkpoints))
         .thenReturn(CompletableFuture.completedFuture(factory1Checkpoints));
@@ -293,7 +293,7 @@ public class TestTaskStorageCommitManager {
         Collections.emptyMap(), new Partition(1), checkpointManager, new MapConfig(),
         ForkJoinPool.commonPool(), new StorageManagerUtil(), null, metrics);
 
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(storageEngines);
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(storageEngines);
     CheckpointId newCheckpointId = CheckpointId.create();
     cm.init();
     cm.snapshot(newCheckpointId);
@@ -331,7 +331,7 @@ public class TestTaskStorageCommitManager {
         Collections.emptyMap(),  new Partition(1), checkpointManager, new MapConfig(),
         ForkJoinPool.commonPool(), new StorageManagerUtil(), durableStoreDir, metrics);
     when(checkpointManager.readLastCheckpoint(taskName)).thenReturn(checkpoint);
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(Collections.emptyMap());
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(Collections.emptyMap());
     when(taskBackupManager1.cleanUp(any(), any())).thenReturn(CompletableFuture.<Void>completedFuture(null));
     when(taskBackupManager2.cleanUp(any(), any())).thenReturn(CompletableFuture.<Void>completedFuture(null));
     Map<String, String> factory1Checkpoints = ImmutableMap.of(
@@ -369,7 +369,7 @@ public class TestTaskStorageCommitManager {
     when(metrics.storeCheckpointNs()).thenReturn(checkpointTimer);
 
     TaskName taskName = new TaskName("task1");
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(Collections.emptyMap());
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(Collections.emptyMap());
     TaskStorageCommitManager cm = new TaskStorageCommitManager(taskName, Collections.emptyMap(), containerStorageManager,
         Collections.emptyMap(),  new Partition(1), checkpointManager, new MapConfig(),
         ForkJoinPool.commonPool(), new StorageManagerUtil(), durableStoreDir, metrics);
@@ -438,7 +438,7 @@ public class TestTaskStorageCommitManager {
     Timer checkpointTimer = mock(Timer.class);
     when(metrics.storeCheckpointNs()).thenReturn(checkpointTimer);
 
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(taskStores);
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(taskStores);
     TaskStorageCommitManager commitManager = spy(new TaskStorageCommitManager(taskName,
         Collections.emptyMap(), containerStorageManager, storeChangelogsStreams, changelogPartition,
         null, null, ForkJoinPool.commonPool(), storageManagerUtil, durableStoreDir, metrics));
@@ -541,7 +541,7 @@ public class TestTaskStorageCommitManager {
     Timer checkpointTimer = mock(Timer.class);
     when(metrics.storeCheckpointNs()).thenReturn(checkpointTimer);
 
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(taskStores);
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(taskStores);
     TaskStorageCommitManager commitManager = spy(new TaskStorageCommitManager(taskName,
         Collections.emptyMap(), containerStorageManager, storeChangelogsStreams, changelogPartition,
         null, null, ForkJoinPool.commonPool(), storageManagerUtil, durableStoreDir, metrics));
@@ -600,7 +600,7 @@ public class TestTaskStorageCommitManager {
     when(storageManagerUtil.getTaskStoreDir(eq(tmpTestPath), eq("loggedPersistentStore"), any(), any())).thenReturn(tmpTestPath);
     TaskName taskName = new TaskName("task");
 
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(taskStores);
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(taskStores);
     TaskStorageCommitManager commitManager = spy(new TaskStorageCommitManager(taskName,
         Collections.emptyMap(), containerStorageManager, storeChangelogsStreams, changelogPartition,
         null, null, ForkJoinPool.commonPool(), storageManagerUtil, tmpTestPath, metrics));
@@ -681,7 +681,7 @@ public class TestTaskStorageCommitManager {
     when(storageManagerUtil.getTaskStoreDir(eq(tmpTestPath), eq("loggedPersistentStore"), any(), any())).thenReturn(tmpTestPath);
     TaskName taskName = new TaskName("task");
 
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(taskStores);
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(taskStores);
     TaskStorageCommitManager commitManager = spy(new TaskStorageCommitManager(taskName,
         Collections.emptyMap(), containerStorageManager, storeChangelogsStreams, changelogPartition,
         null, null, ForkJoinPool.commonPool(), storageManagerUtil, tmpTestPath, metrics));
@@ -795,7 +795,7 @@ public class TestTaskStorageCommitManager {
     when(storageManagerUtil.getTaskStoreDir(eq(tmpTestPath), any(), any(), any())).thenReturn(tmpTestPath);
     TaskName taskName = new TaskName("task");
 
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(taskStores);
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(taskStores);
     TaskStorageCommitManager commitManager = spy(new TaskStorageCommitManager(taskName,
         Collections.emptyMap(), containerStorageManager, storeChangelogsStreams, changelogPartition,
         null, null, ForkJoinPool.commonPool(), storageManagerUtil, tmpTestPath, metrics));
@@ -866,7 +866,7 @@ public class TestTaskStorageCommitManager {
         "loggedInMemStore", "system;loggedInMemStoreStream;1",
         "inMemStore", "system;inMemStoreStream;1"
     );
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(taskStores);
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(taskStores);
     CheckpointV2 checkpoint = new CheckpointV2(CheckpointId.create(), Collections.emptyMap(), Collections.singletonMap("factory", storeSCM));
     doThrow(IOException.class).when(storageManagerUtil).writeCheckpointV2File(eq(tmpTestPath), eq(checkpoint));
 
@@ -894,7 +894,7 @@ public class TestTaskStorageCommitManager {
         "factory2", taskBackupManager2
     );
 
-    when(containerStorageManager.getNonDaVinciStores(taskName)).thenReturn(Collections.emptyMap());
+    when(containerStorageManager.getAllStores(taskName)).thenReturn(Collections.emptyMap());
     TaskStorageCommitManager cm = new TaskStorageCommitManager(taskName, backupManagers, containerStorageManager,
         Collections.emptyMap(), new Partition(1), checkpointManager, new MapConfig(),
         ForkJoinPool.commonPool(), storageManagerUtil, durableStoreDir, metrics);
@@ -912,5 +912,22 @@ public class TestTaskStorageCommitManager {
     verify(durableStoreDir).listFiles();
     verify(mockStoreDir).listFiles(any(FileFilter.class));
     verify(storageManagerUtil).getTaskStoreDir(eq(durableStoreDir), eq(mockStoreDirName), eq(taskName), eq(TaskMode.Active));
+  }
+
+  @Test
+  public void testWriteFakeOffsetToDaVinciStoreDirectory() {
+    ContainerStorageManager containerStorageManager = mock(ContainerStorageManager.class);
+    StorageManagerUtil storageManagerUtil = mock(StorageManagerUtil.class);
+
+    when(containerStorageManager.getContainerId()).thenReturn("0");
+
+    File tmpTestPath = new File("store-checkpoint-test");
+    TaskStorageCommitManager commitManager = new TaskStorageCommitManager(new TaskName("task1"), Collections.emptyMap(),
+        containerStorageManager, Collections.emptyMap(), new Partition(1), null, new MapConfig(),
+        ForkJoinPool.commonPool(), storageManagerUtil, tmpTestPath, null);
+
+    commitManager.writeFakeOffsetToDaVinciStoreDirectory();
+    verify(storageManagerUtil, times(1))
+        .writeOffsetToDaVinciStoreDirectory(eq(tmpTestPath), eq("0"), any());
   }
 }

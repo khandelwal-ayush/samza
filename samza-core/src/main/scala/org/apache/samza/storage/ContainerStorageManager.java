@@ -185,6 +185,7 @@ public class ContainerStorageManager {
   private final StorageManagerUtil storageManagerUtil = new StorageManagerUtil();
 
   private boolean isStarted = false;
+  private boolean hasDaVinciStore = false;
 
   public ContainerStorageManager(
       CheckpointManager checkpointManager,
@@ -754,6 +755,8 @@ public class ContainerStorageManager {
       startSideInputs();
     }
     isStarted = true;
+    // Since DaVinci is a per container store, the first task has DaVinci store indicates there is DaVinci store enabled
+    hasDaVinciStore = !daVinciStores.isEmpty() && !daVinciStores.values().iterator().next().isEmpty();
   }
 
 
@@ -1037,23 +1040,6 @@ public class ContainerStorageManager {
   }
 
   /**
-   * Get all non daVinciStorage engines for a given task.
-   * @param taskName the task name, all stores for which are desired.
-   * @return map of non-DaVinci stores used by the given task, indexed by storename
-   */
-  public Map<String, StorageEngine> getNonDaVinciStores(TaskName taskName) {
-    if (!isStarted) {
-      throw new SamzaException(String.format(
-          "Attempting to access stores for task %s before ContainerStorageManager is started.", taskName));
-    }
-    StorageConfig storageConfig = new StorageConfig(config);
-    return this.taskStores.get(taskName).entrySet().stream()
-        .filter(e ->
-            !StringUtils.equals(storageConfig.getStorageFactoryClassName(e.getKey()).get(), DAVINCI_KV_STORAGE_ENGINE_FACTORY))
-        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-  }
-
-  /**
    * Get all {@link StorageEngine} instance used by a given task except DaVinciStores and side inputs
    */
   public Set<String> getNonSideInputNonDaVinciStoresNames() {
@@ -1070,6 +1056,20 @@ public class ContainerStorageManager {
     return storageEngineFactories.keySet().stream()
         .filter(storeName -> !sideInputStoreNames.contains(storeName))
         .collect(Collectors.toSet());
+  }
+
+  /**
+   * Whether Davinci store is in use.
+   */
+  public boolean hasDaVinciStore() {
+    return hasDaVinciStore;
+  }
+
+  /**
+   * Get the Container ID
+   */
+  public String getContainerId() {
+    return this.containerModel.getId();
   }
 
   /**

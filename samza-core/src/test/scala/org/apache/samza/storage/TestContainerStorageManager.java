@@ -522,4 +522,13 @@ public class TestContainerStorageManager {
     Assert.assertNotNull(this.containerStorageManager.getAllStores(new TaskName("task 0")).get(DAVINCI_STORE_NAME));
     this.containerStorageManager.shutdown();
   }
+
+
+  @Test
+  public void testHasDaVinciStore() throws InterruptedException {
+    Assert.assertFalse(this.containerStorageManager.hasDaVinciStore());
+    this.containerStorageManager.start();
+    Assert.assertTrue(this.containerStorageManager.hasDaVinciStore());
+    this.containerStorageManager.shutdown();
+  }
 }

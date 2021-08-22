@@ -246,6 +246,22 @@ public class StorageManagerUtil {
   }
 
   /**
+   * Write offset to DaVinci store directories to facilitate stale state cleanup.
+   *
+   * Note:
+   * - Currently DaVinci doesn't support store state checkpointing, the purpose of writing offset to disk is
+   *   to provide the LastModifiedTime of OFFSET file that samza-admin can use to clean up stale DaVinci store states.
+   * - DaVinci store directories are created per container, e.g. <logged-store-path>/<jobName-jobId>/davinci/<containerId>,
+   *   all tasks within the same container will write to the same OFFSET file.
+   */
+  public void writeOffsetToDaVinciStoreDirectory(File storeBaseDir, String storeName, String offset) {
+    File davinciStoreDir = new File(storeBaseDir, "davinci" + File.separator + storeName);
+    File offsetFile = new File(davinciStoreDir, StorageManagerUtil.CHECKPOINT_FILE_NAME);
+    FileUtil fileUtil = new FileUtil();
+    fileUtil.writeWithChecksum(offsetFile, offset);
+  }
+
+  /**
    * Delete the offset file for this store, if one exists.
    * @param storeDir the directory of the store
    */

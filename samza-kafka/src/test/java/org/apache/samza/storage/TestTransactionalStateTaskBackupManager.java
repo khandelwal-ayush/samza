@@ -57,7 +57,7 @@ public class TestTransactionalStateTaskBackupManager {
     ContainerStorageManager csm = mock(ContainerStorageManager.class);
     StorageEngine mockStore = mock(StorageEngine.class);
     java.util.Map<String, StorageEngine> taskStores = ImmutableMap.of("mockStore", mockStore);
-    when(csm.getNonDaVinciStores(any())).thenReturn(taskStores);
+    when(csm.getAllStores(any())).thenReturn(taskStores);
     when(mockStore.getStoreProperties()).thenReturn(new StoreProperties
         .StorePropertiesBuilder().setPersistedToDisk(true).setLoggedStore(true).build());
     TaskInstanceMetrics metrics = mock(TaskInstanceMetrics.class);
