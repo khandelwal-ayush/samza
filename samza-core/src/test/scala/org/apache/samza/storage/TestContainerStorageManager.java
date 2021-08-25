@@ -80,6 +80,9 @@ public class TestContainerStorageManager {
   private static final String DAVINCI_STORE_NAME = "davinci";
   private static final String DAVINCI_KV_STORAGE_ENGINE_FACTORY =
       "com.linkedin.samza.kv.davinci.DaVinciStorageEngineFactory";
+  private static final String IN_MEMORY_STORE_NAME = "inmemory";
+  public static final String INMEMORY_KV_STORAGE_ENGINE_FACTORY =
+      "org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory";
 
   private ContainerStorageManager containerStorageManager;
   private Map<TaskName, Gauge<Object>> taskRestoreMetricGauges;
@@ -185,10 +188,13 @@ public class TestContainerStorageManager {
     configMap.put("stores." + STORE_NAME + ".key.serde", "stringserde");
     configMap.put("stores." + STORE_NAME + ".msg.serde", "stringserde");
     configMap.put("stores." + STORE_NAME + ".factory", mockStorageEngineFactory.getClass().getName());
+    configMap.put("stores." + STORE_NAME + ".changelog", SYSTEM_NAME + "." + STREAM_NAME);
     configMap.put("stores." + DAVINCI_STORE_NAME + ".key.serde", "stringserde");
     configMap.put("stores." + DAVINCI_STORE_NAME + ".msg.serde", "stringserde");
     configMap.put("stores." + DAVINCI_STORE_NAME + ".factory", DAVINCI_KV_STORAGE_ENGINE_FACTORY);
-    configMap.put("stores." + STORE_NAME + ".changelog", SYSTEM_NAME + "." + STREAM_NAME);
+    configMap.put("stores." + IN_MEMORY_STORE_NAME + ".key.serde", "stringserde");
+    configMap.put("stores." + IN_MEMORY_STORE_NAME + ".msg.serde", "stringserde");
+    configMap.put("stores." + IN_MEMORY_STORE_NAME + ".factory", INMEMORY_KV_STORAGE_ENGINE_FACTORY);
     configMap.put("serializers.registry.stringserde.class", StringSerdeFactory.class.getName());
     configMap.put(TaskConfig.TRANSACTIONAL_STATE_RETAIN_EXISTING_STATE, "true");
     Config config = new MapConfig(configMap);
@@ -523,6 +529,13 @@ public class TestContainerStorageManager {
     this.containerStorageManager.shutdown();
   }
 
+  @Test
+  public void testNoMemoryStore() throws InterruptedException {
+    this.containerStorageManager.start();
+    Assert.assertNull(this.containerStorageManager.getAllStores(new TaskName("task 0")).get(IN_MEMORY_STORE_NAME));
+    this.containerStorageManager.shutdown();
+  }
+
 
   @Test
   public void testHasDaVinciStore() throws InterruptedException {
@@ -530,5 +543,311 @@ public class TestContainerStorageManager {
     this.containerStorageManager.start();
     Assert.assertTrue(this.containerStorageManager.hasDaVinciStore());
     this.containerStorageManager.shutdown();
+  }
+
+  @Test
+  public void testNoDaVinciStore() throws InterruptedException {
+    // Create a map of test changeLogSSPs
+    Map<String, SystemStream> changelogSystemStreams = new HashMap<>();
+    changelogSystemStreams.put(STORE_NAME, new SystemStream(SYSTEM_NAME, STREAM_NAME));
+
+    // Create mocked storage engine factories
+    Map<String, StorageEngineFactory<Object, Object>> storageEngineFactories = new HashMap<>();
+    StorageEngineFactory mockStorageEngineFactory =
+        (StorageEngineFactory<Object, Object>) mock(StorageEngineFactory.class);
+    StorageEngine mockStorageEngine = mock(StorageEngine.class);
+    when(mockStorageEngine.getStoreProperties())
+        .thenReturn(new StoreProperties.StorePropertiesBuilder().setLoggedStore(true).setPersistedToDisk(true).build());
+    doAnswer(invocation -> {
+      return mockStorageEngine;
+    }).when(mockStorageEngineFactory).getStorageEngine(anyString(), any(), any(), any(), any(),
+        any(), any(), any(), any(), any(), any());
+
+    // Do not add DaVinci store
+    storageEngineFactories.put(STORE_NAME, mockStorageEngineFactory);
+
+    // Add instrumentation to mocked storage engine, to record the number of store.restore() calls
+    doAnswer(invocation -> {
+      storeRestoreCallCount++;
+      return null;
+    }).when(mockStorageEngine).restore(any());
+
+    // Set the mocked stores' properties to be persistent
+    doAnswer(invocation -> {
+      return new StoreProperties.StorePropertiesBuilder().setLoggedStore(true).build();
+    }).when(mockStorageEngine).getStoreProperties();
+
+    // Mock and setup sysconsumers
+    SystemConsumer mockSystemConsumer = mock(SystemConsumer.class);
+    doAnswer(invocation -> {
+      systemConsumerStartCount++;
+      return null;
+    }).when(mockSystemConsumer).start();
+    doAnswer(invocation -> {
+      systemConsumerStopCount++;
+      return null;
+    }).when(mockSystemConsumer).stop();
+
+    // Create mocked system factories
+    Map<String, SystemFactory> systemFactories = new HashMap<>();
+
+    // Count the number of sysConsumers created
+    SystemFactory mockSystemFactory = mock(SystemFactory.class);
+    doAnswer(invocation -> {
+      this.systemConsumerCreationCount++;
+      return mockSystemConsumer;
+    }).when(mockSystemFactory).getConsumer(anyString(), any(), any());
+
+    systemFactories.put(SYSTEM_NAME, mockSystemFactory);
+
+    // Create mocked configs for specifying serdes
+    Map<String, String> configMap = new HashMap<>();
+    configMap.put("stores." + STORE_NAME + ".key.serde", "stringserde");
+    configMap.put("stores." + STORE_NAME + ".msg.serde", "stringserde");
+    configMap.put("stores." + STORE_NAME + ".factory", mockStorageEngineFactory.getClass().getName());
+    configMap.put("stores." + STORE_NAME + ".changelog", SYSTEM_NAME + "." + STREAM_NAME);
+    configMap.put("stores." + DAVINCI_STORE_NAME + ".key.serde", "stringserde");
+    configMap.put("stores." + DAVINCI_STORE_NAME + ".msg.serde", "stringserde");
+    configMap.put("stores." + DAVINCI_STORE_NAME + ".factory", DAVINCI_KV_STORAGE_ENGINE_FACTORY);
+    configMap.put("serializers.registry.stringserde.class", StringSerdeFactory.class.getName());
+    configMap.put(TaskConfig.TRANSACTIONAL_STATE_RETAIN_EXISTING_STATE, "true");
+    Config config = new MapConfig(configMap);
+
+    Map<String, Serde<Object>> serdes = new HashMap<>();
+    serdes.put("stringserde", mock(Serde.class));
+
+    // Create mocked system admins
+    SystemAdmin mockSystemAdmin = mock(SystemAdmin.class);
+    doAnswer(new Answer<Void>() {
+      public Void answer(InvocationOnMock invocation) {
+        Object[] args = invocation.getArguments();
+        System.out.println("called with arguments: " + Arrays.toString(args));
+        return null;
+      }
+    }).when(mockSystemAdmin).validateStream(any());
+    SystemAdmins mockSystemAdmins = mock(SystemAdmins.class);
+    when(mockSystemAdmins.getSystemAdmin("kafka")).thenReturn(mockSystemAdmin);
+
+    // Create a mocked mockStreamMetadataCache
+    SystemStreamMetadata.SystemStreamPartitionMetadata sspMetadata =
+        new SystemStreamMetadata.SystemStreamPartitionMetadata("0", "50", "51");
+    Map<Partition, SystemStreamMetadata.SystemStreamPartitionMetadata> partitionMetadata = new HashMap<>();
+    partitionMetadata.put(new Partition(0), sspMetadata);
+    partitionMetadata.put(new Partition(1), sspMetadata);
+    SystemStreamMetadata systemStreamMetadata = new SystemStreamMetadata(STREAM_NAME, partitionMetadata);
+    StreamMetadataCache mockStreamMetadataCache = mock(StreamMetadataCache.class);
+
+    when(mockStreamMetadataCache.
+        getStreamMetadata(JavaConverters.
+            asScalaSetConverter(new HashSet<SystemStream>(changelogSystemStreams.values())).asScala().toSet(), false))
+        .thenReturn(
+            new scala.collection.immutable.Map.Map1(new SystemStream(SYSTEM_NAME, STREAM_NAME), systemStreamMetadata));
+
+    CheckpointManager checkpointManager = mock(CheckpointManager.class);
+    when(checkpointManager.readLastCheckpoint(any(TaskName.class))).thenReturn(new CheckpointV1(new HashMap<>()));
+
+    SSPMetadataCache mockSSPMetadataCache = mock(SSPMetadataCache.class);
+    when(mockSSPMetadataCache.getMetadata(any(SystemStreamPartition.class)))
+        .thenReturn(new SystemStreamMetadata.SystemStreamPartitionMetadata("0", "10", "11"));
+
+    ContainerContext mockContainerContext = mock(ContainerContext.class);
+    ContainerModel mockContainerModel = new ContainerModel("samza-container-test", tasks);
+    when(mockContainerContext.getContainerModel()).thenReturn(mockContainerModel);
+
+    // Reset the expected number of sysConsumer create, start and stop calls, and store.restore() calls
+    this.systemConsumerCreationCount = 0;
+    this.systemConsumerStartCount = 0;
+    this.systemConsumerStopCount = 0;
+    this.storeRestoreCallCount = 0;
+
+    StateBackendFactory backendFactory = mock(StateBackendFactory.class);
+    TaskRestoreManager restoreManager = mock(TaskRestoreManager.class);
+    when(backendFactory.getRestoreManager(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(restoreManager);
+    doAnswer(invocation -> {
+      storeRestoreCallCount++;
+      return null;
+    }).when(restoreManager).restore();
+
+    ContainerStorageManager containerStorageManager = new ContainerStorageManager(
+        checkpointManager,
+        mockContainerModel,
+        mockStreamMetadataCache,
+        mockSystemAdmins,
+        changelogSystemStreams,
+        new HashMap<>(),
+        storageEngineFactories,
+        systemFactories,
+        serdes,
+        config,
+        taskInstanceMetrics,
+        samzaContainerMetrics,
+        mock(JobContext.class),
+        mockContainerContext,
+        Optional.of(mock(ExternalContext.class)),
+        ImmutableMap.of(StorageConfig.KAFKA_STATE_BACKEND_FACTORY, backendFactory),
+        mock(Map.class),
+        DEFAULT_LOGGED_STORE_BASE_DIR,
+        DEFAULT_STORE_BASE_DIR,
+        null,
+        new SystemClock());
+
+    Assert.assertFalse(containerStorageManager.hasDaVinciStore());
+    containerStorageManager.start();
+    Assert.assertFalse(containerStorageManager.hasDaVinciStore());
+    containerStorageManager.shutdown();
+  }
+
+  @Test
+  public void testInMemoryStoreFiltering() throws InterruptedException {
+    // Create a map of test changeLogSSPs
+    Map<String, SystemStream> changelogSystemStreams = new HashMap<>();
+    changelogSystemStreams.put(STORE_NAME, new SystemStream(SYSTEM_NAME, STREAM_NAME));
+
+    // Create mocked storage engine factories
+    Map<String, StorageEngineFactory<Object, Object>> storageEngineFactories = new HashMap<>();
+    StorageEngineFactory mockStorageEngineFactory =
+        (StorageEngineFactory<Object, Object>) mock(StorageEngineFactory.class);
+    StorageEngine mockStorageEngine = mock(StorageEngine.class);
+    when(mockStorageEngine.getStoreProperties())
+        .thenReturn(new StoreProperties.StorePropertiesBuilder().setLoggedStore(true).setPersistedToDisk(true).build());
+    doAnswer(invocation -> {
+      return mockStorageEngine;
+    }).when(mockStorageEngineFactory).getStorageEngine(anyString(), any(), any(), any(), any(),
+        any(), any(), any(), any(), any(), any());
+
+    // Do not add in-memory store
+    storageEngineFactories.put(STORE_NAME, mockStorageEngineFactory);
+    storageEngineFactories.put(IN_MEMORY_STORE_NAME, mockStorageEngineFactory);
+
+    // Add instrumentation to mocked storage engine, to record the number of store.restore() calls
+    doAnswer(invocation -> {
+      storeRestoreCallCount++;
+      return null;
+    }).when(mockStorageEngine).restore(any());
+
+    // Set the mocked stores' properties to be persistent
+    doAnswer(invocation -> {
+      return new StoreProperties.StorePropertiesBuilder().setLoggedStore(true).build();
+    }).when(mockStorageEngine).getStoreProperties();
+
+    // Mock and setup sysconsumers
+    SystemConsumer mockSystemConsumer = mock(SystemConsumer.class);
+    doAnswer(invocation -> {
+      systemConsumerStartCount++;
+      return null;
+    }).when(mockSystemConsumer).start();
+    doAnswer(invocation -> {
+      systemConsumerStopCount++;
+      return null;
+    }).when(mockSystemConsumer).stop();
+
+    // Create mocked system factories
+    Map<String, SystemFactory> systemFactories = new HashMap<>();
+
+    // Count the number of sysConsumers created
+    SystemFactory mockSystemFactory = mock(SystemFactory.class);
+    doAnswer(invocation -> {
+      this.systemConsumerCreationCount++;
+      return mockSystemConsumer;
+    }).when(mockSystemFactory).getConsumer(anyString(), any(), any());
+
+    systemFactories.put(SYSTEM_NAME, mockSystemFactory);
+
+    // Create mocked configs for specifying serdes
+    Map<String, String> configMap = new HashMap<>();
+    configMap.put("stores." + STORE_NAME + ".key.serde", "stringserde");
+    configMap.put("stores." + STORE_NAME + ".msg.serde", "stringserde");
+    configMap.put("stores." + STORE_NAME + ".factory", mockStorageEngineFactory.getClass().getName());
+    configMap.put("stores." + STORE_NAME + ".changelog", SYSTEM_NAME + "." + STREAM_NAME);
+    configMap.put("stores." + IN_MEMORY_STORE_NAME + ".key.serde", "stringserde");
+    configMap.put("stores." + IN_MEMORY_STORE_NAME + ".msg.serde", "stringserde");
+    configMap.put("stores." + IN_MEMORY_STORE_NAME + ".factory", INMEMORY_KV_STORAGE_ENGINE_FACTORY);
+    configMap.put("serializers.registry.stringserde.class", StringSerdeFactory.class.getName());
+    configMap.put(TaskConfig.TRANSACTIONAL_STATE_RETAIN_EXISTING_STATE, "true");
+    Config config = new MapConfig(configMap);
+
+    Map<String, Serde<Object>> serdes = new HashMap<>();
+    serdes.put("stringserde", mock(Serde.class));
+
+    // Create mocked system admins
+    SystemAdmin mockSystemAdmin = mock(SystemAdmin.class);
+    doAnswer(new Answer<Void>() {
+      public Void answer(InvocationOnMock invocation) {
+        Object[] args = invocation.getArguments();
+        System.out.println("called with arguments: " + Arrays.toString(args));
+        return null;
+      }
+    }).when(mockSystemAdmin).validateStream(any());
+    SystemAdmins mockSystemAdmins = mock(SystemAdmins.class);
+    when(mockSystemAdmins.getSystemAdmin("kafka")).thenReturn(mockSystemAdmin);
+
+    // Create a mocked mockStreamMetadataCache
+    SystemStreamMetadata.SystemStreamPartitionMetadata sspMetadata =
+        new SystemStreamMetadata.SystemStreamPartitionMetadata("0", "50", "51");
+    Map<Partition, SystemStreamMetadata.SystemStreamPartitionMetadata> partitionMetadata = new HashMap<>();
+    partitionMetadata.put(new Partition(0), sspMetadata);
+    partitionMetadata.put(new Partition(1), sspMetadata);
+    SystemStreamMetadata systemStreamMetadata = new SystemStreamMetadata(STREAM_NAME, partitionMetadata);
+    StreamMetadataCache mockStreamMetadataCache = mock(StreamMetadataCache.class);
+
+    when(mockStreamMetadataCache.
+        getStreamMetadata(JavaConverters.
+            asScalaSetConverter(new HashSet<SystemStream>(changelogSystemStreams.values())).asScala().toSet(), false))
+        .thenReturn(
+            new scala.collection.immutable.Map.Map1(new SystemStream(SYSTEM_NAME, STREAM_NAME), systemStreamMetadata));
+
+    CheckpointManager checkpointManager = mock(CheckpointManager.class);
+    when(checkpointManager.readLastCheckpoint(any(TaskName.class))).thenReturn(new CheckpointV1(new HashMap<>()));
+
+    SSPMetadataCache mockSSPMetadataCache = mock(SSPMetadataCache.class);
+    when(mockSSPMetadataCache.getMetadata(any(SystemStreamPartition.class)))
+        .thenReturn(new SystemStreamMetadata.SystemStreamPartitionMetadata("0", "10", "11"));
+
+    ContainerContext mockContainerContext = mock(ContainerContext.class);
+    ContainerModel mockContainerModel = new ContainerModel("samza-container-test", tasks);
+    when(mockContainerContext.getContainerModel()).thenReturn(mockContainerModel);
+
+    // Reset the expected number of sysConsumer create, start and stop calls, and store.restore() calls
+    this.systemConsumerCreationCount = 0;
+    this.systemConsumerStartCount = 0;
+    this.systemConsumerStopCount = 0;
+    this.storeRestoreCallCount = 0;
+
+    StateBackendFactory backendFactory = mock(StateBackendFactory.class);
+    TaskRestoreManager restoreManager = mock(TaskRestoreManager.class);
+    when(backendFactory.getRestoreManager(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(restoreManager);
+    doAnswer(invocation -> {
+      storeRestoreCallCount++;
+      return null;
+    }).when(restoreManager).restore();
+
+    ContainerStorageManager containerStorageManager = new ContainerStorageManager(
+        checkpointManager,
+        mockContainerModel,
+        mockStreamMetadataCache,
+        mockSystemAdmins,
+        changelogSystemStreams,
+        new HashMap<>(),
+        storageEngineFactories,
+        systemFactories,
+        serdes,
+        config,
+        taskInstanceMetrics,
+        samzaContainerMetrics,
+        mock(JobContext.class),
+        mockContainerContext,
+        Optional.of(mock(ExternalContext.class)),
+        ImmutableMap.of(StorageConfig.KAFKA_STATE_BACKEND_FACTORY, backendFactory),
+        mock(Map.class),
+        DEFAULT_LOGGED_STORE_BASE_DIR,
+        DEFAULT_STORE_BASE_DIR,
+        null,
+        new SystemClock());
+
+    containerStorageManager.start();
+    Assert.assertNotNull(containerStorageManager.getAllStores(new TaskName("task 0")).get(IN_MEMORY_STORE_NAME));
+    containerStorageManager.shutdown();
   }
 }

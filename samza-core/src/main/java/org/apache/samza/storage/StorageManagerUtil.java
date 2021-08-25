@@ -256,6 +256,10 @@ public class StorageManagerUtil {
    */
   public void writeOffsetToDaVinciStoreDirectory(File storeBaseDir, String storeName, String offset) {
     File davinciStoreDir = new File(storeBaseDir, "davinci" + File.separator + storeName);
+    if (!davinciStoreDir.exists()) {
+      // DaVinci store directory should have been created by DaVinci during store initialization time
+      throw new SamzaException(String.format("DaVinci store directory %s doesn't exist", davinciStoreDir.toPath().toString()));
+    }
     File offsetFile = new File(davinciStoreDir, StorageManagerUtil.CHECKPOINT_FILE_NAME);
     FileUtil fileUtil = new FileUtil();
     fileUtil.writeWithChecksum(offsetFile, offset);

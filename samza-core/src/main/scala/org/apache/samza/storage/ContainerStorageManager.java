@@ -274,7 +274,7 @@ public class ContainerStorageManager {
     Set<String> inMemoryStoreNames = storageEngineFactories.keySet().stream()
         .filter(storeName -> {
           Optional<String> storeFactory = storageConfig.getStorageFactoryClassName(storeName);
-          return storeFactory.isPresent() && !storeFactory.get()
+          return storeFactory.isPresent() && storeFactory.get()
               .equals(StorageConfig.INMEMORY_KV_STORAGE_ENGINE_FACTORY);
         })
         .collect(Collectors.toSet());
@@ -283,7 +283,7 @@ public class ContainerStorageManager {
     Set<String> daVinciStoreNames = storageEngineFactories.keySet().stream()
         .filter(storeName -> {
           Optional<String> storeFactory = storageConfig.getStorageFactoryClassName(storeName);
-          return storeFactory.isPresent() && !storeFactory.get()
+          return storeFactory.isPresent() && storeFactory.get()
               .equals(DAVINCI_KV_STORAGE_ENGINE_FACTORY);
         })
         .collect(Collectors.toSet());
