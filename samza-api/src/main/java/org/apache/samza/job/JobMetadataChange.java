@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-ext {
-  scalaSuffix = "2.11"
-  scalaVersion = "2.11.8"
-  // Extra options for the compiler:
-  // -feature: Give detailed warnings about language feature use (rather than just 'there were 4 warnings')
-  // -language:implicitConversions: Allow the use of implicit conversions without warning or library import
-  // -language:reflectiveCalls: Allow the automatic use of reflection to access fields without warning or library import
-  scalaOptions = ["-feature", "-language:implicitConversions", "-language:reflectiveCalls"]
-  scalatraVersion = "2.7.1"
+package org.apache.samza.job;
+
+/**
+ * Provides granularity into changes in job metadata (e.g. new job model, new config).
+ */
+public enum JobMetadataChange {
+  // indicates a new deployment of a job
+  NEW_DEPLOYMENT,
+  // indicates a new job model compared to the previous job model
+  JOB_MODEL,
+  // indicates a new set of configs compared to the previous configs
+  CONFIG
 }
