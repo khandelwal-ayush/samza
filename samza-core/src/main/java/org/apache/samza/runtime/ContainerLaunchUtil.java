@@ -28,7 +28,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.samza.SamzaException;
 import org.apache.samza.application.descriptors.ApplicationDescriptor;
 import org.apache.samza.application.descriptors.ApplicationDescriptorImpl;
-import org.apache.samza.clustermanager.StandbyTaskUtil;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.MetricsConfig;
@@ -47,6 +46,7 @@ import org.apache.samza.coordinator.stream.messages.SetContainerHostMapping;
 import org.apache.samza.coordinator.stream.messages.SetExecutionEnvContainerIdMapping;
 import org.apache.samza.diagnostics.DiagnosticsManager;
 import org.apache.samza.job.model.JobModel;
+import org.apache.samza.logging.LoggingContextHolder;
 import org.apache.samza.metadatastore.MetadataStore;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.apache.samza.metrics.MetricsReporter;
@@ -66,7 +66,7 @@ public class ContainerLaunchUtil {
   private static final Logger log = LoggerFactory.getLogger(ContainerLaunchUtil.class);
 
   private static volatile Throwable containerRunnerException = null;
-  private static boolean isContainerLaunched = false;
+
   /**
    * This method launches a Samza container in a managed cluster and is invoked by BeamContainerRunner.
    * Any change here needs to take Beam into account.
@@ -84,41 +84,31 @@ public class ContainerLaunchUtil {
       ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc,
       String jobName, String jobId, String containerId, Optional<String> execEnvContainerId,
       JobModel jobModel) {
+    Config config = jobModel.getConfig();
 
-    // populate MDC for logging
+    // logging setup: MDC, logging context
     MDC.put("containerName", "samza-container-" + containerId);
     MDC.put("jobName", jobName);
     MDC.put("jobId", jobId);
 
-
-    Config config = jobModel.getConfig();
-
     // Linkedin-only Offspring setup
     ProcessGeneratorHolder.getInstance().createGenerator(config);
     ProcessGeneratorHolder.getInstance().start();
-    isContainerLaunched = true;
+    // setConfig must be called after Offspring set-up because loggers depend on Offspring
+    LoggingContextHolder.INSTANCE.setConfig(jobModel.getConfig());
     // This log line is needed to wire in Log appenders prior to ExternalContext to avoid offspring errors
     // see LISAMZA-21269
     log.warn("Container launched. Sample log to initiate logging-topic creation. "
         + "Ignore this message. ");
     try {
       DiagnosticsUtil.writeMetadataFile(jobName, jobId, containerId, execEnvContainerId, config);
-      if (StandbyTaskUtil.isStandbyContainer(containerId)) {
-        run(appDesc, jobName, jobId, containerId, execEnvContainerId, jobModel, config, buildExternalContext(config));
-      } else {
-        run(appDesc, jobName, jobId, containerId, execEnvContainerId, jobModel, config, buildExternalContext(config));
-      }
+      run(appDesc, jobName, jobId, containerId, execEnvContainerId, jobModel, config, buildExternalContext(config));
     } finally {
-      isContainerLaunched = false;
       // Linkedin-only Offspring shutdown
       ProcessGeneratorHolder.getInstance().stop();
     }
 
     System.exit(0);
-  }
-
-  public static boolean isContainerRunning() {
-    return isContainerLaunched;
   }
 
   private static void run(
