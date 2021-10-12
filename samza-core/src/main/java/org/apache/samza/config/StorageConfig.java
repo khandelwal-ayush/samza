@@ -92,6 +92,7 @@ public class StorageConfig extends MapConfig {
 
   // Internal config to clean storeDirs of a store on container start. This is used to benchmark bootstrap performance.
   static final String CLEAN_LOGGED_STOREDIRS_ON_START = STORE_PREFIX + "%s.clean.on.container.start";
+  public static final String JOB_CLEAN_LOGGED_STOREDIRS_ON_START = STORE_PREFIX + "clean.on.container.start";
 
   public StorageConfig(Config config) {
     super(config);
@@ -377,8 +378,11 @@ public class StorageConfig extends MapConfig {
 
   /**
    * Helper method to get if logged store dirs should be deleted regardless of their contents.
+   * NOTE: If job level config {@link StorageConfig#JOB_CLEAN_LOGGED_STOREDIRS_ON_START} is set, all the logged stores
+   * will be cleaned on container start and the method will returns true for all the stores.
    */
   public boolean cleanLoggedStoreDirsOnStart(String storeName) {
-    return getBoolean(String.format(CLEAN_LOGGED_STOREDIRS_ON_START, storeName), false);
+    return getBoolean(JOB_CLEAN_LOGGED_STOREDIRS_ON_START, false)
+        || getBoolean(String.format(CLEAN_LOGGED_STOREDIRS_ON_START, storeName), false);
   }
 }
