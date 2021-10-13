@@ -57,7 +57,7 @@ class KeyValueStorageEngine[K, V](
     info("Calling init for wrapped store: " + storeName)
     wrapperStore.init(context);
   }
-  
+
   /* delegate to underlying store */
   def get(key: K): V = {
     updateTimer(metrics.getNs) {
