@@ -96,14 +96,17 @@ public class KafkaConsumerConfig extends HashMap<String, Object> {
     LOG.info("setting auto.offset.reset for system {} to {}", systemName, autoOffsetReset);
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
 
-    // if consumer bootstrap servers are not configured, get them from the producer configs
-    if (!subConf.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)) {
-      String bootstrapServers =
-          config.get(String.format("systems.%s.producer.%s", systemName, ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
-      if (StringUtils.isEmpty(bootstrapServers)) {
-        throw new SamzaException("Missing " + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG + " config  for " + systemName);
+    // LI specific: schemaRegistryRestUrl and bootstrap.server is now only used when deploy on dev/qei
+    if (isLocalDeploymentFabric(System.getenv("SAMZA_ENV"))) {
+      // if consumer bootstrap servers are not configured, get them from the producer configs
+      if (!subConf.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)) {
+        String bootstrapServers =
+            config.get(String.format("systems.%s.producer.%s", systemName, ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
+        if (StringUtils.isEmpty(bootstrapServers)) {
+          throw new SamzaException("Missing " + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG + " config  for " + systemName);
+        }
+        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
       }
-      consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     }
 
     // Always use default partition assignment strategy. Do not allow override.
@@ -230,5 +233,17 @@ public class KafkaConsumerConfig extends HashMap<String, Object> {
     }
 
     return newAutoOffsetReset;
+  }
+
+  /**
+   * Check if the given env is local deployment env.
+   * @param envName env name
+   * @return true if it is local deployment env, otherwise false.
+   */
+  public static boolean isLocalDeploymentFabric(String envName) {
+    final String QEI_FABRIC_PREFIX = "qei";
+    final String DEV_ENVIRONMENT = "dev";
+    return StringUtils.isBlank(envName) || envName.equalsIgnoreCase(DEV_ENVIRONMENT) ||
+        StringUtils.startsWithIgnoreCase(envName, QEI_FABRIC_PREFIX);
   }
 }
