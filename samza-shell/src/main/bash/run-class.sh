@@ -45,6 +45,19 @@ BASE_LIB_DIR="$base_dir/lib"
 DEFAULT_LOG4J_FILE=$BASE_LIB_DIR/$LOG4J_FILE_NAME
 DEFAULT_LOG4J2_FILE=$BASE_LIB_DIR/$LOG4J2_FILE_NAME
 
+# For Managed Beam Workflow type jobs, user jar and log4j2.xml will be placed under __userPackage/lib.
+# If __userPackage/lib exists, set APPLICATION_LIB_DIR to __userPackage/lib and copy jars under __userPackage/lib
+# to __package/lib
+if [ -d "$home_dir/__userPackage/lib" ]; then
+  APPLICATION_LIB_DIR="$home_dir/__userPackage/lib"
+  echo APPLICATION_LIB_DIR=$APPLICATION_LIB_DIR
+  for jar in $APPLICATION_LIB_DIR/*.[jw]ar;
+  do
+    echo "Copy user provided jar $jar to $BASE_LIB_DIR"
+    cp $jar $BASE_LIB_DIR/
+  done
+fi
+
 # APPLICATION_LIB_DIR can be a directory which is different from $BASE_LIB_DIR which contains some additional
 # application-specific resources. If it is not set, then $BASE_LIB_DIR will be used as the value.
 APPLICATION_LIB_DIR="${APPLICATION_LIB_DIR:-$BASE_LIB_DIR}"
