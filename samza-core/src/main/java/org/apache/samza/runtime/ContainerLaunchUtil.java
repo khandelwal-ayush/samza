@@ -24,13 +24,11 @@ import com.linkedin.samza.generator.internal.ProcessGeneratorHolder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.samza.SamzaException;
 import org.apache.samza.application.descriptors.ApplicationDescriptor;
 import org.apache.samza.application.descriptors.ApplicationDescriptorImpl;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.JobConfig;
-import org.apache.samza.config.MetricsConfig;
 import org.apache.samza.config.ShellCommandConfig;
 import org.apache.samza.container.ContainerHeartbeatMonitor;
 import org.apache.samza.container.ExecutionContainerIdManager;
@@ -50,7 +48,6 @@ import org.apache.samza.logging.LoggingContextHolder;
 import org.apache.samza.metadatastore.MetadataStore;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.apache.samza.metrics.MetricsReporter;
-import org.apache.samza.metrics.reporter.MetricsSnapshotReporter;
 import org.apache.samza.startpoint.StartpointManager;
 import org.apache.samza.task.TaskFactory;
 import org.apache.samza.task.TaskFactoryUtil;
@@ -136,12 +133,9 @@ public class ContainerLaunchUtil {
       Map<String, MetricsReporter> metricsReporters = loadMetricsReporters(appDesc, containerId, config);
 
       // Creating diagnostics manager and reporter, and wiring it respectively
-      Optional<Pair<DiagnosticsManager, MetricsSnapshotReporter>> diagnosticsManagerReporterPair = DiagnosticsUtil.buildDiagnosticsManager(jobName, jobId, jobModel, containerId, execEnvContainerIdOptional, config);
-      Option<DiagnosticsManager> diagnosticsManager = Option.empty();
-      if (diagnosticsManagerReporterPair.isPresent()) {
-        diagnosticsManager = Option.apply(diagnosticsManagerReporterPair.get().getKey());
-        metricsReporters.put(MetricsConfig.METRICS_SNAPSHOT_REPORTER_NAME_FOR_DIAGNOSTICS, diagnosticsManagerReporterPair.get().getValue());
-      }
+      Optional<DiagnosticsManager> diagnosticsManager =
+          DiagnosticsUtil.buildDiagnosticsManager(jobName, jobId, jobModel, containerId, execEnvContainerIdOptional,
+              config);
       MetricsRegistryMap metricsRegistryMap = new MetricsRegistryMap();
 
       SamzaContainer container = SamzaContainer$.MODULE$.apply(
@@ -155,7 +149,7 @@ public class ContainerLaunchUtil {
           Option.apply(externalContextOptional.orElse(null)),
           localityManager,
           startpointManager,
-          diagnosticsManager);
+          Option.apply(diagnosticsManager.orElse(null)));
 
       ProcessorLifecycleListener processorLifecycleListener = appDesc.getProcessorLifecycleListenerFactory()
           .createInstance(new ProcessorContext() { }, config);
