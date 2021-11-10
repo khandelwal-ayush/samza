@@ -46,16 +46,11 @@ DEFAULT_LOG4J_FILE=$BASE_LIB_DIR/$LOG4J_FILE_NAME
 DEFAULT_LOG4J2_FILE=$BASE_LIB_DIR/$LOG4J2_FILE_NAME
 
 # For Managed Beam Workflow type jobs, user jar and log4j2.xml will be placed under __userPackage/lib.
-# If __userPackage/lib exists, set APPLICATION_LIB_DIR to __userPackage/lib and copy jars under __userPackage/lib
-# to __package/lib
+# If __userPackage/lib exists, set APPLICATION_LIB_DIR to __userPackage/lib
+# TODO - use parameter like job type (WORKFLOW_DSL) to decide whether there is a separate user lib path
 if [ -d "$home_dir/__userPackage/lib" ]; then
   APPLICATION_LIB_DIR="$home_dir/__userPackage/lib"
   echo APPLICATION_LIB_DIR=$APPLICATION_LIB_DIR
-  for jar in $APPLICATION_LIB_DIR/*.[jw]ar;
-  do
-    echo "Copy user provided jar $jar to $BASE_LIB_DIR"
-    cp $jar $BASE_LIB_DIR/
-  done
 fi
 
 # APPLICATION_LIB_DIR can be a directory which is different from $BASE_LIB_DIR which contains some additional
@@ -85,6 +80,20 @@ do
   CLASSPATH=$CLASSPATH" $file \n"
 done
 echo generated from BASE_LIB_DIR CLASSPATH=$CLASSPATH
+
+# when APPLICATION_LIB_DIR is different from BASE_LIB_DIR, meaning it is a Managed Beam Workflow job, append
+# user jars in __userPackage/lib to the classpath
+# TODO - In the initial version of Managed Beam Workflow job, it's ensured that no extra jars are supplied from the
+# user job besides the user jar that only contains the pipeline proto file and non-jar resources. When simple UDF
+# support is to be added, we need to ensure no jar or class collision happens while combining user jars with framework jars
+# on classpath
+if [ "$APPLICATION_LIB_DIR" != "$BASE_LIB_DIR" ]; then
+  for file in $APPLICATION_LIB_DIR/*.[jw]ar;
+  do
+    CLASSPATH=$CLASSPATH" $file \n"
+  done
+  echo generated from $APPLICATION_LIB_DIR CLASSPATH=$CLASSPATH
+fi
 
 # In some cases (AWS) $JAVA_HOME/bin doesn't contain jar.
 if [ -z "$JAVA_HOME" ] || [ ! -e "$JAVA_HOME/bin/jar" ]; then
