@@ -21,7 +21,6 @@ package org.apache.samza.test.harness
 import java.io.File
 import java.util
 import java.util.Properties
-
 import kafka.common.KafkaException
 import kafka.server.{KafkaConfig, KafkaServer}
 import kafka.utils.{CoreUtils, TestUtils}
@@ -106,7 +105,7 @@ abstract class AbstractKafkaServerTestHarness extends AbstractZookeeperTestHarne
         case e: Exception =>
           println("Exception in setup")
           println(e)
-          TestUtils.fail(e.getMessage)
+          throw new AssertionError(e.getMessage)
       }
     }.toBuffer
     brokerList = TestUtils.getBrokerListStrFromServers(servers, securityProtocol)
@@ -123,7 +122,7 @@ abstract class AbstractKafkaServerTestHarness extends AbstractZookeeperTestHarne
     // if the test case requires setting up a cluster ACL,
     // then it needs to be implemented.
     setClusterAcl.foreach(_.apply())
-    kafkaZkClient = KafkaZkClient(zkConnect, JaasUtils.isZkSecurityEnabled, zkSessionTimeout, zkConnectionTimeout, 100, Time.SYSTEM)
+    kafkaZkClient = KafkaZkClient(zkConnect, JaasUtils.isZkSaslEnabled, zkSessionTimeout, zkConnectionTimeout, 100, Time.SYSTEM)
     adminZkClient = new AdminZkClient(kafkaZkClient)
   }
 

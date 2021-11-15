@@ -53,12 +53,14 @@ import org.apache.samza.test.StandaloneTestUtils;
 import org.apache.samza.test.harness.IntegrationTestHarness;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import scala.Option$;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 
 public class TestStreamProcessor extends IntegrationTestHarness {
@@ -133,9 +135,9 @@ public class TestStreamProcessor extends IntegrationTestHarness {
   }
 
   /**
-   * Should fail to create a SamzaContainer when neither task factory nor task.class are provided.
+   * Should fail to start job coordinator
    */
-  @Test(expected = SamzaException.class)
+  @Test
   public void testStreamProcessorWithNoTask() {
     final String testSystem = "test-system";
     final String inputTopic = "numbers4";
@@ -148,6 +150,11 @@ public class TestStreamProcessor extends IntegrationTestHarness {
     final TestStubs stubs = new TestStubs(configs, (StreamTaskFactory) null, bootstrapServers());
 
     run(stubs.processor, stubs.shutdownLatch);
+    ArgumentCaptor<SamzaException> argument = ArgumentCaptor.forClass(SamzaException.class);
+    verify(stubs.listener).afterFailure(argument.capture());
+    Assert.assertEquals(
+        String.format("org.apache.samza.SamzaException: Partition info not(yet?) available for system %s topic %s",
+            testSystem, inputTopic), argument.getValue().getMessage());
   }
 
   private void createTopics(String inputTopic, String outputTopic) {
@@ -262,15 +269,14 @@ public class TestStreamProcessor extends IntegrationTestHarness {
           bootstrapServer,
           "group",
           "earliest",
-          4096L,
-          "org.apache.kafka.clients.consumer.RangeAssignor",
-          30000,
+          true,
+          false,
+          500,
           SecurityProtocol.PLAINTEXT,
           Option$.MODULE$.<File>empty(),
           Option$.MODULE$.<Properties>empty(),
           new StringDeserializer(),
-          new ByteArrayDeserializer(),
-          Option$.MODULE$.<Properties>empty());
+          new ByteArrayDeserializer());
     }
 
     private void initProcessorListener() {
@@ -291,16 +297,16 @@ public class TestStreamProcessor extends IntegrationTestHarness {
           60 * 1000L,
           1024L * 1024L,
           0,
+          30 * 1000,
           0,
-          5 * 1000,
+          16384,
+          "none",
+          20 * 1000,
           SecurityProtocol.PLAINTEXT,
           null,
           Option$.MODULE$.<Properties>apply(new Properties()),
           new StringSerializer(),
-          new ByteArraySerializer(),
-          Option$.MODULE$.<Properties>apply(new Properties()),
-          // Linkedin-specific: the Linkedin version of TestUtils.createProducer has an extra deliveryTimeoutMs argument
-          30 * 1000);
+          new ByteArraySerializer());
     }
   }
 }
