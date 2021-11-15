@@ -21,22 +21,22 @@ package org.apache.samza.system.kafka
 
 import java.util.concurrent.ConcurrentHashMap
 
-import kafka.common.TopicAndPartition
+import org.apache.kafka.common.TopicPartition
 import org.apache.samza.metrics._
 
 class KafkaSystemConsumerMetrics(val systemName: String = "unknown", val registry: MetricsRegistry = new MetricsRegistryMap) extends MetricsHelper {
-  val offsets = new ConcurrentHashMap[TopicAndPartition, Counter]
-  val bytesRead = new ConcurrentHashMap[TopicAndPartition, Counter]
-  val reads = new ConcurrentHashMap[TopicAndPartition, Counter]
-  val lag = new ConcurrentHashMap[TopicAndPartition, Gauge[Long]]
-  val highWatermark = new ConcurrentHashMap[TopicAndPartition, Gauge[Long]]
+  val offsets = new ConcurrentHashMap[TopicPartition, Counter]
+  val bytesRead = new ConcurrentHashMap[TopicPartition, Counter]
+  val reads = new ConcurrentHashMap[TopicPartition, Counter]
+  val lag = new ConcurrentHashMap[TopicPartition, Gauge[Long]]
+  val highWatermark = new ConcurrentHashMap[TopicPartition, Gauge[Long]]
 
   val clientBytesRead = new ConcurrentHashMap[String, Counter]
   val clientReads = new ConcurrentHashMap[String, Counter]
   val clientSkippedFetchRequests = new ConcurrentHashMap[String, Counter]
   val topicPartitions = new ConcurrentHashMap[String, Gauge[Int]]
 
-  def registerTopicAndPartition(tp: TopicAndPartition) = {
+  def registerTopicPartition(tp: TopicPartition) = {
     if (!offsets.contains(tp)) {
       offsets.put(tp, newCounter("%s-%s-offset-change" format(tp.topic, tp.partition)))
       bytesRead.put(tp, newCounter("%s-%s-bytes-read" format(tp.topic, tp.partition)))
@@ -59,11 +59,11 @@ class KafkaSystemConsumerMetrics(val systemName: String = "unknown", val registr
     topicPartitions.get(clientName).set(value)
   }
 
-  def setLagValue(topicAndPartition: TopicAndPartition, value: Long) {
+  def setLagValue(topicAndPartition: TopicPartition, value: Long) {
     lag.get((topicAndPartition)).set(value);
   }
 
-  def setHighWatermarkValue(topicAndPartition: TopicAndPartition, value: Long) {
+  def setHighWatermarkValue(topicAndPartition: TopicPartition, value: Long) {
     highWatermark.get((topicAndPartition)).set(value);
   }
 
@@ -72,11 +72,11 @@ class KafkaSystemConsumerMetrics(val systemName: String = "unknown", val registr
     clientReads.get(clientName).inc
   }
 
-  def incReads(topicAndPartition: TopicAndPartition) {
+  def incReads(topicAndPartition: TopicPartition) {
     reads.get(topicAndPartition).inc;
   }
 
-  def incBytesReads(topicAndPartition: TopicAndPartition, inc: Long) {
+  def incBytesReads(topicAndPartition: TopicPartition, inc: Long) {
     bytesRead.get(topicAndPartition).inc(inc);
   }
 
@@ -88,7 +88,7 @@ class KafkaSystemConsumerMetrics(val systemName: String = "unknown", val registr
     clientSkippedFetchRequests.get(clientName).inc()
   }
 
-  def setOffsets(topicAndPartition: TopicAndPartition, offset: Long) {
+  def setOffsets(topicAndPartition: TopicPartition, offset: Long) {
     offsets.get(topicAndPartition).set(offset)
   }
 
