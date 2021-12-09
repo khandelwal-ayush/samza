@@ -43,6 +43,7 @@ import org.apache.samza.coordinator.stream.messages.SetConfig;
 import org.apache.samza.coordinator.stream.messages.SetContainerHostMapping;
 import org.apache.samza.coordinator.stream.messages.SetExecutionEnvContainerIdMapping;
 import org.apache.samza.diagnostics.DiagnosticsManager;
+import org.apache.samza.environment.EnvironmentVariables;
 import org.apache.samza.job.model.JobModel;
 import org.apache.samza.logging.LoggingContextHolder;
 import org.apache.samza.metadatastore.MetadataStore;
@@ -69,9 +70,12 @@ public class ContainerLaunchUtil {
    * Any change here needs to take Beam into account.
    */
   public static void run(ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc,  String containerId, JobModel jobModel) {
-    Optional<String> execEnvContainerId = Optional.ofNullable(System.getenv(ShellCommandConfig.ENV_EXECUTION_ENV_CONTAINER_ID));
+    Optional<String> executionEnvContainerId =
+        Optional.ofNullable(System.getenv(ShellCommandConfig.ENV_EXECUTION_ENV_CONTAINER_ID));
+    Optional<String> samzaEpochId = Optional.ofNullable(System.getenv(EnvironmentVariables.SAMZA_EPOCH_ID));
     JobConfig jobConfig = new JobConfig(jobModel.getConfig());
-    ContainerLaunchUtil.run(appDesc, jobConfig.getName().get(), jobConfig.getJobId(), containerId, execEnvContainerId, jobModel);
+    ContainerLaunchUtil.run(appDesc, jobConfig.getName().get(), jobConfig.getJobId(), containerId,
+        executionEnvContainerId, samzaEpochId, jobModel);
   }
 
   /**
@@ -79,7 +83,11 @@ public class ContainerLaunchUtil {
    */
   public static void run(
       ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc,
-      String jobName, String jobId, String containerId, Optional<String> execEnvContainerId,
+      String jobName,
+      String jobId,
+      String containerId,
+      Optional<String> executionEnvContainerId,
+      Optional<String> samzaEpochId,
       JobModel jobModel) {
     Config config = jobModel.getConfig();
 
@@ -98,8 +106,9 @@ public class ContainerLaunchUtil {
     log.warn("Container launched. Sample log to initiate logging-topic creation. "
         + "Ignore this message. ");
     try {
-      DiagnosticsUtil.writeMetadataFile(jobName, jobId, containerId, execEnvContainerId, config);
-      run(appDesc, jobName, jobId, containerId, execEnvContainerId, jobModel, config, buildExternalContext(config));
+      DiagnosticsUtil.writeMetadataFile(jobName, jobId, containerId, executionEnvContainerId, config);
+      run(appDesc, jobName, jobId, containerId, executionEnvContainerId, samzaEpochId, jobModel, config,
+          buildExternalContext(config));
     } finally {
       // Linkedin-only Offspring shutdown
       ProcessGeneratorHolder.getInstance().stop();
@@ -113,7 +122,8 @@ public class ContainerLaunchUtil {
       String jobName,
       String jobId,
       String containerId,
-      Optional<String> execEnvContainerIdOptional,
+      Optional<String> executionEnvContainerId,
+      Optional<String> samzaEpochId,
       JobModel jobModel,
       Config config,
       Optional<ExternalContext> externalContextOptional) {
@@ -134,8 +144,8 @@ public class ContainerLaunchUtil {
 
       // Creating diagnostics manager and reporter, and wiring it respectively
       Optional<DiagnosticsManager> diagnosticsManager =
-          DiagnosticsUtil.buildDiagnosticsManager(jobName, jobId, jobModel, containerId, execEnvContainerIdOptional,
-              config);
+          DiagnosticsUtil.buildDiagnosticsManager(jobName, jobId, jobModel, containerId, executionEnvContainerId,
+              samzaEpochId, config);
       MetricsRegistryMap metricsRegistryMap = new MetricsRegistryMap();
 
       SamzaContainer container = SamzaContainer$.MODULE$.apply(
@@ -164,7 +174,7 @@ public class ContainerLaunchUtil {
       }
 
       if (new JobConfig(config).getApplicationMasterHighAvailabilityEnabled()) {
-        execEnvContainerIdOptional.ifPresent(execEnvContainerId -> {
+        executionEnvContainerId.ifPresent(execEnvContainerId -> {
           ExecutionContainerIdManager executionContainerIdManager = new ExecutionContainerIdManager(
               new NamespaceAwareCoordinatorStreamStore(coordinatorStreamStore, SetExecutionEnvContainerIdMapping.TYPE));
           executionContainerIdManager.writeExecutionEnvironmentContainerIdMapping(containerId, execEnvContainerId);
@@ -217,21 +227,27 @@ public class ContainerLaunchUtil {
    */
   private static ContainerHeartbeatMonitor createContainerHeartbeatMonitor(SamzaContainer container,
       MetadataStore coordinatorStreamStore, Config config) {
-    String coordinatorUrl = System.getenv(ShellCommandConfig.ENV_COORDINATOR_URL);
-    String executionEnvContainerId = System.getenv(ShellCommandConfig.ENV_EXECUTION_ENV_CONTAINER_ID);
-    if (executionEnvContainerId != null) {
-      log.info("Got execution environment container id: {}", executionEnvContainerId);
-      return new ContainerHeartbeatMonitor(() -> {
-        try {
-          container.shutdown();
-          containerRunnerException = new SamzaException("Container shutdown due to expired heartbeat");
-        } catch (Exception e) {
-          log.error("Heartbeat monitor failed to shutdown the container gracefully. Exiting process.", e);
-          System.exit(1);
-        }
-      }, coordinatorUrl, executionEnvContainerId, coordinatorStreamStore, config);
+    if (new JobConfig(config).getContainerHeartbeatMonitorEnabled()) {
+      String coordinatorUrl = System.getenv(ShellCommandConfig.ENV_COORDINATOR_URL);
+      String executionEnvContainerId = System.getenv(ShellCommandConfig.ENV_EXECUTION_ENV_CONTAINER_ID);
+      if (executionEnvContainerId != null) {
+        log.info("Got execution environment container id for container heartbeat monitor: {}", executionEnvContainerId);
+        return new ContainerHeartbeatMonitor(() -> {
+          try {
+            container.shutdown();
+            containerRunnerException = new SamzaException("Container shutdown due to expired heartbeat");
+          } catch (Exception e) {
+            log.error("Heartbeat monitor failed to shutdown the container gracefully. Exiting process.", e);
+            System.exit(1);
+          }
+        }, coordinatorUrl, executionEnvContainerId, coordinatorStreamStore, config);
+      } else {
+        log.warn("Container heartbeat monitor is enabled, but execution environment container id is not set. "
+            + "Container heartbeat monitor will not be created");
+        return null;
+      }
     } else {
-      log.warn("Execution environment container id not set. Container heartbeat monitor will not be created");
+      log.info("Container heartbeat monitor is disabled");
       return null;
     }
   }

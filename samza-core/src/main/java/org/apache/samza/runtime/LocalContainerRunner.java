@@ -30,6 +30,7 @@ import org.apache.samza.config.Config;
 import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.ShellCommandConfig;
 import org.apache.samza.container.SamzaContainer;
+import org.apache.samza.environment.EnvironmentVariables;
 import org.apache.samza.job.model.JobModel;
 // LI-specific: do not use LoggingContextHolder here, because we need to set up Offspring in ContainerLaunchUtil first
 // import org.apache.samza.logging.LoggingContextHolder;
@@ -57,7 +58,9 @@ public class LocalContainerRunner {
     String coordinatorUrl = System.getenv(ShellCommandConfig.ENV_COORDINATOR_URL);
     System.out.println(String.format("Coordinator URL: %s", coordinatorUrl));
 
-    Optional<String> execEnvContainerId = Optional.ofNullable(System.getenv(ShellCommandConfig.ENV_EXECUTION_ENV_CONTAINER_ID));
+    Optional<String> executionEnvContainerId =
+        Optional.ofNullable(System.getenv(ShellCommandConfig.ENV_EXECUTION_ENV_CONTAINER_ID));
+    Optional<String> samzaEpochId = Optional.ofNullable(System.getenv(EnvironmentVariables.SAMZA_EPOCH_ID));
 
     int delay = new Random().nextInt(SamzaContainer.DEFAULT_READ_JOBMODEL_DELAY_MS()) + 1;
     JobModel jobModel = SamzaContainer.readJobModel(coordinatorUrl, delay);
@@ -76,7 +79,7 @@ public class LocalContainerRunner {
     ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc =
         ApplicationDescriptorUtil.getAppDescriptor(ApplicationUtil.fromConfig(config), config);
 
-    ContainerLaunchUtil.run(appDesc, jobName, jobId, containerId, execEnvContainerId, jobModel);
+    ContainerLaunchUtil.run(appDesc, jobName, jobId, containerId, executionEnvContainerId, samzaEpochId,
+        jobModel);
   }
-
 }
