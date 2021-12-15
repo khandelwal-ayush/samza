@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import kafka.common.TopicAndPartition;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -356,6 +357,7 @@ public class KafkaConsumerProxy<K, V> {
   }
 
   private void updateMetrics(ConsumerRecord<K, V> r, TopicPartition tp) {
+    TopicAndPartition tap = KafkaSystemConsumer.toTopicAndPartition(tp);
     SystemStreamPartition ssp = new SystemStreamPartition(systemName, tp.topic(), new Partition(tp.partition()));
 
     Long lag = latestLags.get(ssp);
@@ -371,11 +373,11 @@ public class KafkaConsumerProxy<K, V> {
     long highWatermark = recordOffset + currentSSPLag; // derived value for the highwatermark
 
     int size = getRecordSize(r);
-    kafkaConsumerMetrics.incReads(tp);
-    kafkaConsumerMetrics.incBytesReads(tp, size);
-    kafkaConsumerMetrics.setOffsets(tp, recordOffset);
+    kafkaConsumerMetrics.incReads(tap);
+    kafkaConsumerMetrics.incBytesReads(tap, size);
+    kafkaConsumerMetrics.setOffsets(tap, recordOffset);
     kafkaConsumerMetrics.incClientBytesReads(metricName, size);
-    kafkaConsumerMetrics.setHighWatermarkValue(tp, highWatermark);
+    kafkaConsumerMetrics.setHighWatermarkValue(tap, highWatermark);
   }
 
   private void moveMessagesToTheirQueue(SystemStreamPartition ssp, List<IncomingMessageEnvelope> envelopes) {
@@ -434,7 +436,7 @@ public class KafkaConsumerProxy<K, V> {
     for (Map.Entry<SystemStreamPartition, Long> e : nextOffsets.entrySet()) {
       SystemStreamPartition ssp = e.getKey();
       Long offset = e.getValue();
-      TopicPartition tp = new TopicPartition(ssp.getStream(), ssp.getPartition().getPartitionId());
+      TopicAndPartition tp = new TopicAndPartition(ssp.getStream(), ssp.getPartition().getPartitionId());
       Long lag = latestLags.get(ssp);
       LOG.trace("Latest offset of {} is  {}; lag = {}", ssp, offset, lag);
       if (lag != null && offset != null && lag >= 0) {

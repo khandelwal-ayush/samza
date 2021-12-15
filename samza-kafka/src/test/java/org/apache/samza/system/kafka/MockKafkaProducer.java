@@ -19,7 +19,6 @@
 
 package org.apache.samza.system.kafka;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -168,7 +167,7 @@ public class MockKafkaProducer implements Producer<byte[], byte[]> {
   }
 
   @Override
-  public void close(Duration timeoutDuration) {
+  public void close(long timeout, TimeUnit timeUnit) {
     closed = true;
     // The real producer will flush messages as part of closing. We'll invoke flush here to approximate that behavior.
     new FlushRunnable(0).run();
