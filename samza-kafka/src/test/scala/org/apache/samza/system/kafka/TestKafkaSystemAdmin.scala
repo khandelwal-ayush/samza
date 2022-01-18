@@ -53,7 +53,7 @@ object TestKafkaSystemAdmin extends KafkaServerTestHarness {
   val TOPIC2 = "input2"
   val TOTAL_PARTITIONS = 50
   val REPLICATION_FACTOR = 2
-  val zkSecure = JaasUtils.isZkSaslEnabled()
+  val zkSecure = JaasUtils.isZkSecurityEnabled()
   val KAFKA_CONSUMER_PROPERTY_PREFIX: String = "systems." + SYSTEM + ".consumer."
   val KAFKA_PRODUCER_PROPERTY_PREFIX: String = "systems." + SYSTEM + ".producer."
 
@@ -233,6 +233,14 @@ class TestKafkaSystemAdmin {
     text = new String(message.value().asInstanceOf[Array[Byte]], "UTF-8")
     assertEquals(sspMetadata.get(new Partition(24)).getNewestOffset, message.offset.toString)
     assertEquals("val2", text)
+  }
+
+  @Test
+  def testNonExistentTopic {
+    val initialOffsets = systemAdmin.getSystemStreamMetadata(Set("non-existent-topic").asJava)
+    val metadata = initialOffsets.asScala.getOrElse("non-existent-topic", fail("missing metadata"))
+    assertEquals(metadata, new SystemStreamMetadata("non-existent-topic", Map(
+      new Partition(0) -> new SystemStreamPartitionMetadata("0", null, "0")).asJava))
   }
 
   @Test

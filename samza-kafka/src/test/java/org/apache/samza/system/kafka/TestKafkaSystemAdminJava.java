@@ -34,7 +34,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.samza.Partition;
-import org.apache.samza.SamzaException;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.JobConfig;
@@ -311,11 +310,7 @@ public class TestKafkaSystemAdminJava extends TestKafkaSystemAdmin {
     assertFalse("createStream should return false if the stream already exists.", systemAdmin().createStream(spec));
   }
 
-  /**
-   * After kafka 2.4, kafka server will not auto create a topic for non-existing stream
-   * Expected throwing a SamzaException at an earlier point than throwing StreamValidationException
-   */
-  @Test(expected = SamzaException.class)
+  @Test(expected = StreamValidationException.class)
   public void testValidateStreamDoesNotExist() {
 
     StreamSpec spec = new StreamSpec("testId", "testStreamNameExist", "testSystem", 8);
@@ -334,11 +329,7 @@ public class TestKafkaSystemAdminJava extends TestKafkaSystemAdmin {
     systemAdmin().validateStream(spec2);
   }
 
-  /**
-   * After kafka 2.4, kafka server will not auto create a topic for non-existing stream
-   * Expected throwing a SamzaException at an earlier point than throwing StreamValidationException
-   */
-  @Test(expected = SamzaException.class)
+  @Test(expected = StreamValidationException.class)
   public void testValidateStreamWrongName() {
     StreamSpec spec1 = new StreamSpec("testId", "testStreamName1", "testSystem", 8);
     StreamSpec spec2 = new StreamSpec("testId", "testStreamName2", "testSystem", 8);

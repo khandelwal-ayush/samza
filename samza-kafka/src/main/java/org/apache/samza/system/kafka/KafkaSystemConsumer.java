@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import kafka.common.TopicAndPartition;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
@@ -276,7 +277,7 @@ public class KafkaSystemConsumer<K, V> extends BlockingEnvelopeMap implements Sy
       topicPartitionsToOffset.put(topicPartition, offset);
     }
 
-    metrics.registerTopicPartition(toTopicPartition(topicPartition));
+    metrics.registerTopicAndPartition(toTopicAndPartition(topicPartition));
   }
 
   /**
@@ -308,8 +309,8 @@ public class KafkaSystemConsumer<K, V> extends BlockingEnvelopeMap implements Sy
     return super.poll(systemStreamPartitions, timeout);
   }
 
-  protected static TopicPartition toTopicPartition(TopicPartition topicPartition) {
-    return new TopicPartition(topicPartition.topic(), topicPartition.partition());
+  protected static TopicAndPartition toTopicAndPartition(TopicPartition topicPartition) {
+    return new TopicAndPartition(topicPartition.topic(), topicPartition.partition());
   }
 
   protected static TopicPartition toTopicPartition(SystemStreamPartition ssp) {

@@ -263,10 +263,6 @@ public class KafkaSystemAdmin implements SystemAdmin {
             Map<Partition, SystemStreamMetadata.SystemStreamPartitionMetadata> partitionMetadata = new HashMap<>();
 
             List<PartitionInfo> partitionInfos = threadSafeKafkaConsumer.execute(consumer -> consumer.partitionsFor(streamName));
-            if (partitionInfos == null) {
-              String msg = String.format("Partition info not(yet?) available for system %s topic %s", systemName, streamName);
-              throw new SamzaException(msg);
-            }
             LOG.debug("Stream {} has partitions {}", streamName, partitionInfos);
             partitionInfos.forEach(
               partitionInfo -> partitionMetadata.put(new Partition(partitionInfo.partition()), dummySspm));

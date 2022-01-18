@@ -19,7 +19,9 @@
 
 package org.apache.samza.sql.client.impl;
 
+import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkConnection;
 import org.I0Itec.zkclient.exception.ZkTimeoutException;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -56,6 +58,7 @@ import org.apache.samza.tools.schemas.ProfileChangeEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.JavaConversions;
 
 import java.io.File;
 import java.io.IOException;
@@ -77,7 +80,6 @@ public class SamzaExecutor implements SqlExecutor {
   private static final String SAMZA_SQL_OUTPUT = "samza.sql.output";
   private static final String SAMZA_SQL_SYSTEM_KAFKA_ADDRESS = "samza.sql.system.kafka.address";
   private static final String DEFAULT_SERVER_ADDRESS = "localhost:2181";
-  private static final String ZOOKEEPER_BROKERS_TOPICS_PATH = "/brokers/topics";
 
   // The maximum number of rows of data we keep when user pauses the display view and data accumulates.
   private static final int RANDOM_ACCESS_QUEUE_CAPACITY = 5000;
@@ -118,8 +120,9 @@ public class SamzaExecutor implements SqlExecutor {
       address = DEFAULT_SERVER_ADDRESS;
     }
     try {
-      ZkClient zkClient = new ZkClient(address, DEFAULT_ZOOKEEPER_CLIENT_TIMEOUT);
-      return zkClient.getChildren(ZOOKEEPER_BROKERS_TOPICS_PATH)
+      ZkUtils zkUtils = new ZkUtils(new ZkClient(address, DEFAULT_ZOOKEEPER_CLIENT_TIMEOUT),
+          new ZkConnection(address), false);
+      return JavaConversions.seqAsJavaList(zkUtils.getAllTopics())
         .stream()
         .map(x -> SAMZA_SYSTEM_KAFKA + "." + x)
         .collect(Collectors.toList());
