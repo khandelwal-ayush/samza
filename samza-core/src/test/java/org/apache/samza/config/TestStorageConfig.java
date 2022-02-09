@@ -562,4 +562,23 @@ public class TestStorageConfig {
     assertEquals(Collections.emptyList(),
         new StorageConfig(new MapConfig(configMap)).getStoresWithBackupFactory(storeBackupFactory2));
   }
+
+  @Test
+  public void testGetPersistentStoresExcludesInMemAndDavinciStores() {
+    String storeName = "store1";
+    String storeName2 = "store2";
+    String storeName3 = "store3";
+    Map<String, String> configMap = new HashMap<>();
+    configMap.put(String.format(FACTORY, storeName), "store1.factory.class");
+    configMap.put(String.format(FACTORY, storeName2), INMEMORY_KV_STORAGE_ENGINE_FACTORY);
+    configMap.put(String.format(FACTORY, storeName3), DAVINCI_KV_STORAGE_ENGINE_FACTORY);
+
+    String jobBackupFactory1 = "jobBackendBackupFactory1";
+    String jobBackupFactory2 = "jobBackendBackupFactory2";
+    String jobBackupFactoryOverride = jobBackupFactory1 + "," + jobBackupFactory2;
+    configMap.put(JOB_BACKUP_FACTORIES, jobBackupFactoryOverride);
+
+    assertEquals(ImmutableList.of(storeName), new StorageConfig(new MapConfig(configMap))
+        .getPersistentStoresWithBackupFactory(jobBackupFactory1));
+  }
 }

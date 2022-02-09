@@ -68,6 +68,8 @@ public class StorageConfig extends MapConfig {
 
   public static final String INMEMORY_KV_STORAGE_ENGINE_FACTORY =
       "org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory";
+  public static final String DAVINCI_KV_STORAGE_ENGINE_FACTORY =
+      "com.linkedin.samza.kv.davinci.DaVinciStorageEngineFactory";
   public static final String KAFKA_STATE_BACKEND_FACTORY =
       "org.apache.samza.storage.KafkaChangelogStateBackendFactory";
   public static final List<String> DEFAULT_BACKUP_FACTORIES = ImmutableList.of(
@@ -328,7 +330,10 @@ public class StorageConfig extends MapConfig {
         .filter(storeName -> {
           Optional<String> storeFactory = getStorageFactoryClassName(storeName);
           return storeFactory.isPresent() &&
-              !storeFactory.get().equals(StorageConfig.INMEMORY_KV_STORAGE_ENGINE_FACTORY);
+              !storeFactory.get().equals(StorageConfig.INMEMORY_KV_STORAGE_ENGINE_FACTORY) &&
+              // LI ONLY: Filter out daVinci stores so they are not uploaded with BlobStore
+              // TODO: BlobStoreBackupManager use StateCheckpointMarkers to determine stores to restore
+              !storeFactory.get().equals(StorageConfig.DAVINCI_KV_STORAGE_ENGINE_FACTORY);
         })
         .filter((storeName) -> getStoreBackupFactories(storeName)
             .contains(backendFactoryName))
