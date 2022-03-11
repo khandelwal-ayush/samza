@@ -430,7 +430,8 @@ object SamzaContainer extends Logging {
       metrics = systemConsumersMetrics,
       dropDeserializationError = dropDeserializationError,
       pollIntervalMs = pollIntervalMs,
-      clock = () => clock.nanoTime())
+      clock = () => clock.nanoTime(),
+      elasticityFactor = jobConfig.getElasticityFactor)
 
     val producerMultiplexer = new SystemProducers(
       producers = producers,
@@ -455,8 +456,9 @@ object SamzaContainer extends Logging {
     samzaContainerMetrics.containerThreadPoolSize.set(threadPoolSize)
 
     val taskThreadPool = if (threadPoolSize > 0) {
-      Executors.newFixedThreadPool(threadPoolSize,
-        new ThreadFactoryBuilder().setNameFormat("Samza Container Thread-%d").build())
+      val taskExecutorFactoryClassName = jobConfig.getTaskExecutorFactory
+      val taskExecutorFactory = ReflectionUtil.getObj(taskExecutorFactoryClassName, classOf[TaskExecutorFactory])
+      taskExecutorFactory.getTaskExecutor(config)
     } else {
       null
     }
