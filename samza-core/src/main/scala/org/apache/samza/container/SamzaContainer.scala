@@ -37,6 +37,8 @@ import org.apache.samza.container.disk.{DiskQuotaPolicyFactory, DiskSpaceMonitor
 import org.apache.samza.container.host.{StatisticsMonitorImpl, SystemMemoryStatistics, SystemStatisticsMonitor}
 import org.apache.samza.context._
 import org.apache.samza.diagnostics.DiagnosticsManager
+import org.apache.samza.drain.DrainMonitor.DrainCallback
+import org.apache.samza.drain.DrainMonitor
 import org.apache.samza.job.model.{ContainerModel, JobModel, TaskMode}
 import org.apache.samza.metrics.{JmxServer, JvmMetrics, MetricsRegistryMap, MetricsReporter}
 import org.apache.samza.serializers._
@@ -132,7 +134,8 @@ object SamzaContainer extends Logging {
     externalContextOption: Option[ExternalContext],
     localityManager: LocalityManager = null,
     startpointManager: StartpointManager = null,
-    diagnosticsManager: Option[DiagnosticsManager] = Option.empty) = {
+    diagnosticsManager: Option[DiagnosticsManager] = Option.empty,
+    drainMonitor: DrainMonitor = null) = {
     val config = if (StandbyTaskUtil.isStandbyContainer(containerId)) {
       // standby containers will need to continually poll checkpoint messages
       val newConfig = new util.HashMap[String, String](jobContext.getConfig)
@@ -544,8 +547,6 @@ object SamzaContainer extends Logging {
 
     storeWatchPaths.addAll(containerStorageManager.getStoreDirectoryPaths)
 
-
-
     // Create taskInstances
     val taskInstances: Map[TaskName, TaskInstance] = taskModels
       .filter(taskModel => taskModel.getTaskMode.eq(TaskMode.Active)).map(taskModel => {
@@ -671,6 +672,7 @@ object SamzaContainer extends Logging {
     } else {
       info(s"Disk quotas disabled because polling interval is not set ($DISK_POLL_INTERVAL_KEY)")
     }
+
     info("Samza container setup complete.")
 
     new SamzaContainer(
@@ -696,6 +698,7 @@ object SamzaContainer extends Logging {
       applicationContainerContextOption = applicationContainerContextOption,
       externalContextOption = externalContextOption,
       containerStorageManager = containerStorageManager,
+      drainMonitor = drainMonitor,
       diagnosticsManager = diagnosticsManager)
   }
 }
@@ -723,6 +726,7 @@ class SamzaContainer(
   applicationContainerContextOption: Option[ApplicationContainerContext],
   externalContextOption: Option[ExternalContext],
   containerStorageManager: ContainerStorageManager,
+  drainMonitor: DrainMonitor = null,
   diagnosticsManager: Option[DiagnosticsManager] = Option.empty) extends Runnable with Logging {
 
   private val jobConfig = new JobConfig(config)
@@ -742,6 +746,10 @@ class SamzaContainer(
   private var containerListener: SamzaContainerListener = null
 
   def getStatus(): SamzaContainerStatus = status
+
+  def drain() {
+    consumerMultiplexer.drain
+  }
 
   def getTaskInstances() = taskInstances
 
@@ -769,6 +777,7 @@ class SamzaContainer(
       startMetrics
       startDiagnostics
       startAdmins
+      startDrainMonitor
       startOffsetManager
       storeContainerLocality
       // TODO HIGH pmaheshw SAMZA-2338: since store restore needs to trim changelog messages,
@@ -832,6 +841,7 @@ class SamzaContainer(
 
       shutdownConsumers
       shutdownTask
+      shutdownDrainMonitor
       shutdownTableManager
       shutdownStores
       shutdownDiskSpaceMonitor
@@ -1027,6 +1037,16 @@ class SamzaContainer(
     }
   }
 
+  def startDrainMonitor: Unit = {
+    if (drainMonitor != null) {
+      drainMonitor.registerDrainCallback(new DrainCallback {
+        override def onDrain(): Unit = drain()
+      })
+      info("Starting DrainMonitor.")
+      drainMonitor.start()
+    }
+  }
+
   def shutdownConsumers {
     info("Shutting down consumer multiplexer.")
 
@@ -1142,6 +1162,13 @@ class SamzaContainer(
     if (hostStatisticsMonitor != null) {
       info("Shutting down host statistics monitor.")
       hostStatisticsMonitor.stop()
+    }
+  }
+
+  def shutdownDrainMonitor: Unit = {
+    if (drainMonitor != null) {
+      info("Shutting down DrainMonitor.")
+      drainMonitor.stop();
     }
   }
 }

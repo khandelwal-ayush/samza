@@ -44,6 +44,7 @@ import org.apache.samza.coordinator.stream.messages.SetConfig;
 import org.apache.samza.coordinator.stream.messages.SetContainerHostMapping;
 import org.apache.samza.coordinator.stream.messages.SetExecutionEnvContainerIdMapping;
 import org.apache.samza.diagnostics.DiagnosticsManager;
+import org.apache.samza.drain.DrainMonitor;
 import org.apache.samza.environment.EnvironmentVariables;
 import org.apache.samza.job.model.JobModel;
 import org.apache.samza.logging.LoggingContextHolder;
@@ -156,6 +157,11 @@ public class ContainerLaunchUtil {
               samzaEpochId, config);
       MetricsRegistryMap metricsRegistryMap = new MetricsRegistryMap();
 
+      DrainMonitor drainMonitor = null;
+      if (new JobConfig(config).getDrainMonitorEnabled()) {
+        drainMonitor = new DrainMonitor(coordinatorStreamStore, config);
+      }
+
       SamzaContainer container = SamzaContainer$.MODULE$.apply(
           containerId, jobModel,
           ScalaJavaUtil.toScalaMap(metricsReporters),
@@ -167,7 +173,8 @@ public class ContainerLaunchUtil {
           Option.apply(externalContextOptional.orElse(null)),
           localityManager,
           startpointManager,
-          Option.apply(diagnosticsManager.orElse(null)));
+          Option.apply(diagnosticsManager.orElse(null)),
+          drainMonitor);
 
       ProcessorLifecycleListener processorLifecycleListener = appDesc.getProcessorLifecycleListenerFactory()
           .createInstance(new ProcessorContext() { }, config);

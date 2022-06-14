@@ -36,6 +36,7 @@ import org.apache.samza.container.ExecutionContainerIdManager;
 import org.apache.samza.container.LocalityManager;
 import org.apache.samza.container.TaskName;
 import org.apache.samza.coordinator.InputStreamsDiscoveredException;
+import org.apache.samza.drain.DrainUtils;
 import org.apache.samza.job.metadata.JobCoordinatorMetadataManager;
 import org.apache.samza.coordinator.JobModelManager;
 import org.apache.samza.coordinator.MetadataResourceUtil;
@@ -183,7 +184,12 @@ public class ClusterBasedJobCoordinator {
   /**
    * Variable to keep the callback exception
    */
-  volatile private Exception coordinatorException = null;
+  volatile private Exception coordinatorCallbackException = null;
+
+  /**
+   * Variable to keep any exception that happened during JC run
+   */
+  volatile private Throwable coordinatorRunException = null;
 
   /**
    * Creates a new ClusterBasedJobCoordinator instance.
@@ -338,6 +344,7 @@ public class ClusterBasedJobCoordinator {
       }
     } catch (Throwable e) {
       LOG.error("Exception thrown in the JobCoordinator loop", e);
+      coordinatorRunException = e;
       throw new SamzaException(e);
     } finally {
       onShutDown();
@@ -345,8 +352,8 @@ public class ClusterBasedJobCoordinator {
   }
 
   private boolean checkAndThrowException() throws Exception {
-    if (coordinatorException != null) {
-      throw coordinatorException;
+    if (coordinatorCallbackException != null) {
+      throw coordinatorCallbackException;
     }
     return false;
   }
@@ -382,6 +389,7 @@ public class ClusterBasedJobCoordinator {
    */
   private void onShutDown() {
     try {
+      cleanupDrainNotifications();
       partitionMonitor.stop();
       inputStreamRegexMonitor.ifPresent(StreamRegexMonitor::stop);
       systemAdmins.stop();
@@ -404,6 +412,17 @@ public class ClusterBasedJobCoordinator {
       } catch (Throwable e) {
         LOG.error("Exception while stopping jmx server", e);
       }
+    }
+  }
+
+  private void cleanupDrainNotifications() {
+    if (containerProcessManager.isShutdownSuccessful() && coordinatorRunException == null) {
+      // Garbage collect all DrainNotifications from Drain metadata-store of the job if the following conditions
+      // are met:
+      // 1) If the job is draining
+      // 2) All containers shutdown successfully due to drain
+      // 3) There was no exception in the coordinator
+      DrainUtils.cleanup(metadataStore, config);
     }
   }
 
@@ -430,7 +449,7 @@ public class ClusterBasedJobCoordinator {
             streamsChanged.toString());
         state.status = SamzaApplicationState.SamzaAppStatus.FAILED;
       }
-      coordinatorException = new PartitionChangeException(
+      coordinatorCallbackException = new PartitionChangeException(
           "Input topic partition count changes detected for topics: " + streamsChanged.toString());
     });
   }
@@ -444,7 +463,7 @@ public class ClusterBasedJobCoordinator {
               + " Existing input streams: {}", newInputStreams, initialInputSet);
           state.status = SamzaApplicationState.SamzaAppStatus.FAILED;
         }
-        coordinatorException = new InputStreamsDiscoveredException("New input streams discovered: " + newInputStreams);
+        coordinatorCallbackException = new InputStreamsDiscoveredException("New input streams discovered: " + newInputStreams);
       });
   }
 
