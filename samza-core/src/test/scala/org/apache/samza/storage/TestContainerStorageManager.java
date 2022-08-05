@@ -698,7 +698,7 @@ public class TestContainerStorageManager {
         DEFAULT_LOGGED_STORE_BASE_DIR,
         DEFAULT_STORE_BASE_DIR,
         null,
-        new SystemClock());
+        SystemClock.instance());
 
     Assert.assertFalse(containerStorageManager.hasDaVinciStore());
     containerStorageManager.start();
@@ -852,7 +852,7 @@ public class TestContainerStorageManager {
         DEFAULT_LOGGED_STORE_BASE_DIR,
         DEFAULT_STORE_BASE_DIR,
         null,
-        new SystemClock());
+        SystemClock.instance());
 
     containerStorageManager.start();
     Assert.assertNotNull(containerStorageManager.getAllStores(new TaskName("task 0")).get(IN_MEMORY_STORE_NAME));

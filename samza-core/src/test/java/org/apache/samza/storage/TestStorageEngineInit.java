@@ -197,7 +197,7 @@ public class TestStorageEngineInit {
         DEFAULT_LOGGED_STORE_BASE_DIR,
         DEFAULT_STORE_BASE_DIR,
         null,
-        new SystemClock());
+        SystemClock.instance());
   }
 
   @Test
