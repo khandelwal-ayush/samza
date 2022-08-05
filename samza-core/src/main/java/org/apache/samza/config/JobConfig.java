@@ -166,8 +166,11 @@ public class JobConfig extends MapConfig {
 
   // Enable DrainMonitor in Samza Containers
   // Default is false for now. Will be turned on after testing
-  public static final String DRAIN_MONITOR_ENABLED = "samza.drain-monitor.enabled";
+  public static final String DRAIN_MONITOR_ENABLED = "job.drain-monitor.enabled";
   public static final boolean DRAIN_MONITOR_ENABLED_DEFAULT = false;
+
+  public static final String DRAIN_MONITOR_POLL_INTERVAL_MILLIS = "job.drain-monitor.poll.interval.ms";
+  public static final long DRAIN_MONITOR_POLL_INTERVAL_MILLIS_DEFAULT = 60_000;
 
   // Enable ClusterBasedJobCoordinator aka ApplicationMaster High Availability (AM-HA).
   // High availability allows new AM to establish connection with already running containers
@@ -186,6 +189,7 @@ public class JobConfig extends MapConfig {
 
   public static final String CONTAINER_HEARTBEAT_MONITOR_ENABLED = "job.container.heartbeat.monitor.enabled";
   private static final boolean CONTAINER_HEARTBEAT_MONITOR_ENABLED_DEFAULT = true;
+
 
   // Enabled elasticity for the job
   // number of (elastic) tasks in the job will be old task count X elasticity factor
@@ -479,6 +483,10 @@ public class JobConfig extends MapConfig {
     return getBoolean(DRAIN_MONITOR_ENABLED, DRAIN_MONITOR_ENABLED_DEFAULT);
   }
 
+  public long getDrainMonitorPollIntervalMillis() {
+    return getLong(DRAIN_MONITOR_POLL_INTERVAL_MILLIS, DRAIN_MONITOR_POLL_INTERVAL_MILLIS_DEFAULT);
+  }
+
   public long getContainerHeartbeatRetryCount() {
     return getLong(YARN_CONTAINER_HEARTBEAT_RETRY_COUNT, YARN_CONTAINER_HEARTBEAT_RETRY_COUNT_DEFAULT);
   }
@@ -510,8 +518,8 @@ public class JobConfig extends MapConfig {
 
   public int getElasticityFactor() {
     int elasticityFactor = getInt(JOB_ELASTICITY_FACTOR, DEFAULT_JOB_ELASTICITY_FACTOR);
-    if (elasticityFactor < 1 || elasticityFactor > 16) {
-      throw new ConfigException("Elasticity factor can not be less than 1 or greater than 16");
+    if (elasticityFactor < 1) {
+      throw new ConfigException("Elasticity factor can not be less than 1");
     }
     return elasticityFactor;
   }

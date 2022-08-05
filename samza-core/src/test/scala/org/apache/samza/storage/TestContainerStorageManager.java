@@ -284,7 +284,7 @@ public class TestContainerStorageManager {
         DEFAULT_LOGGED_STORE_BASE_DIR,
         DEFAULT_STORE_BASE_DIR,
         null,
-        new SystemClock());
+        SystemClock.instance());
     this.testContext = new StandbyTestContext();
   }
 
@@ -372,7 +372,7 @@ public class TestContainerStorageManager {
         DEFAULT_LOGGED_STORE_BASE_DIR,
         DEFAULT_STORE_BASE_DIR,
         null,
-        new SystemClock());
+        SystemClock.instance());
 
     containerStorageManager.start();
     containerStorageManager.shutdown();

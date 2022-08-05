@@ -17,21 +17,20 @@
  * under the License.
  */
 
-package org.apache.samza.util;
+package org.apache.samza.task;
 
 /**
- * An object that can provide time points (useful for getting the elapsed time between two time
- * points).
- * <p>
- * Instances of this interface must be thread-safe.
+ * The DrainListenerTask augments {@link StreamTask} allowing the method implementor to specify code to be
+ * executed when the 'drain' is reached for a task.
  */
-public interface Clock {
+public interface DrainListenerTask {
   /**
-   * Returns a time point that can be used to calculate the difference in milliseconds with another
-   * time point. Resolution of the timer is platform dependent and not guaranteed to actually
-   * operate at millisecond precision.
+   * Guaranteed to be invoked when all SSPs processed by this task have drained.
    *
-   * @return current time point in milliseconds
+   * @param collector Contains the means of sending message envelopes to an output stream.*
+   * @param coordinator Manages execution of tasks.
+   *
+   * @throws Exception Any exception types encountered during the execution of the processing task.
    */
-  long currentTimeMillis();
+  void onDrain(MessageCollector collector, TaskCoordinator coordinator) throws Exception;
 }

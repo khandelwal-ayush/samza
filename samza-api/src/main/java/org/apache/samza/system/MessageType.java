@@ -26,7 +26,8 @@ package org.apache.samza.system;
 public enum MessageType {
   USER_MESSAGE,
   WATERMARK,
-  END_OF_STREAM;
+  END_OF_STREAM,
+  DRAIN;
 
   /**
    * Returns the {@link MessageType} of a particular intermediate stream message.
@@ -38,6 +39,8 @@ public enum MessageType {
       return WATERMARK;
     } else if (message instanceof EndOfStreamMessage) {
       return END_OF_STREAM;
+    } else if (message instanceof DrainMessage) {
+      return DRAIN;
     } else {
       return USER_MESSAGE;
     }

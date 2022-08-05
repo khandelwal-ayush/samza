@@ -425,6 +425,8 @@ object SamzaContainer extends Logging {
 
     val pollIntervalMs = taskConfig.getPollIntervalMs
 
+    val appConfig = new ApplicationConfig(config)
+
     val consumerMultiplexer = new SystemConsumers(
       chooser = chooser,
       consumers = consumers,
@@ -434,7 +436,8 @@ object SamzaContainer extends Logging {
       dropDeserializationError = dropDeserializationError,
       pollIntervalMs = pollIntervalMs,
       clock = () => clock.nanoTime(),
-      elasticityFactor = jobConfig.getElasticityFactor)
+      elasticityFactor = jobConfig.getElasticityFactor,
+      runId = appConfig.getRunId)
 
     val producerMultiplexer = new SystemProducers(
       producers = producers,
@@ -543,7 +546,7 @@ object SamzaContainer extends Logging {
       loggedStorageBaseDir,
       nonLoggedStorageBaseDir,
       serdeManager,
-      new SystemClock)
+      SystemClock.instance())
 
     storeWatchPaths.addAll(containerStorageManager.getStoreDirectoryPaths)
 
@@ -576,7 +579,7 @@ object SamzaContainer extends Logging {
               taskInstanceMetrics.get(taskName).isDefined) taskInstanceMetrics.get(taskName).get.registry
             else new MetricsRegistryMap
           val taskBackupManager = factory.getBackupManager(jobContext, containerModel,
-            taskModel, commitThreadPool, taskMetricsRegistry, config, new SystemClock,
+            taskModel, commitThreadPool, taskMetricsRegistry, config, SystemClock.instance(),
             loggedStorageBaseDir, nonLoggedStorageBaseDir)
           taskBackupManagerMap.put(factory.getClass.getName, taskBackupManager)
         }
@@ -622,7 +625,7 @@ object SamzaContainer extends Logging {
 
     val maxThrottlingDelayMs = config.getLong("container.disk.quota.delay.max.ms", TimeUnit.SECONDS.toMillis(1))
 
-    val runLoop = RunLoopFactory.createRunLoop(
+    val runLoop: Runnable = RunLoopFactory.createRunLoop(
       taskInstances,
       consumerMultiplexer,
       taskThreadPool,
@@ -630,7 +633,8 @@ object SamzaContainer extends Logging {
       samzaContainerMetrics,
       taskConfig,
       clock,
-      jobConfig.getElasticityFactor)
+      jobConfig.getElasticityFactor,
+      appConfig.getRunId)
 
     val containerMemoryMb : Int = new ClusterManagerConfig(config).getContainerMemoryMb
 
@@ -748,6 +752,7 @@ class SamzaContainer(
   def getStatus(): SamzaContainerStatus = status
 
   def drain() {
+    // set the SystemConsumers multiplexer and RunLoop in drain mode
     consumerMultiplexer.drain
   }
 
