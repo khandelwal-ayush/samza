@@ -237,7 +237,6 @@ public class LocalApplicationRunner implements ApplicationRunner {
 
     try {
       List<JobConfig> jobConfigs = planner.prepareJobs();
-
       // create the StreamProcessors
       if (jobConfigs.isEmpty()) {
         throw new SamzaException("No jobs to run.");
