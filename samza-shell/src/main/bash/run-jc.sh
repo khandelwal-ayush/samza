@@ -22,4 +22,7 @@
 # Set container name system properties for use in Log4J
 [[ $JAVA_OPTS != *-Dsamza.container.name* ]] && export JAVA_OPTS="$JAVA_OPTS -Dsamza.container.name=samza-job-coordinator"
 
+#LI-specific: set samza-li custom log4j2 configuration factory
+[[ $JAVA_OPTS != *-Dlog4j2.configurationFactory* ]] && export JAVA_OPTS="$JAVA_OPTS -Dlog4j2.configurationFactory=com.linkedin.samza.logging.log4j2.InLogsXmlConfigurationFactory"
+
 exec $(dirname $0)/run-class.sh org.apache.samza.clustermanager.ClusterBasedJobCoordinatorRunner "$@"

@@ -25,4 +25,7 @@
 # Set container name system property for use in Log4J
 [[ $JAVA_OPTS != *-Dsamza.container.name* && ! -z "$SAMZA_CONTAINER_ID" ]] && export JAVA_OPTS="$JAVA_OPTS -Dsamza.container.name=samza-container-$SAMZA_CONTAINER_ID"
 
+#LI-specific: set samza-li custom log4j2 configuration factory
+[[ $JAVA_OPTS != *-Dlog4j2.configurationFactory* ]] && export JAVA_OPTS="$JAVA_OPTS -Dlog4j2.configurationFactory=com.linkedin.samza.logging.log4j2.InLogsXmlConfigurationFactory"
+
 exec $(dirname $0)/run-class.sh org.apache.samza.runtime.LocalContainerRunner "$@"
