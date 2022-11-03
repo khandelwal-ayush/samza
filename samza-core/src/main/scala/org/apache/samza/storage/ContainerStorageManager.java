@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.samza.SamzaException;
+import org.apache.samza.application.ApplicationUtil;
 import org.apache.samza.checkpoint.Checkpoint;
 import org.apache.samza.checkpoint.CheckpointManager;
 import org.apache.samza.checkpoint.CheckpointV2;
@@ -1017,7 +1018,7 @@ public class ContainerStorageManager {
         new SamzaContainerMetrics(SIDEINPUTS_METRICS_PREFIX + this.samzaContainerMetrics.source(),
             this.samzaContainerMetrics.registry(), SIDEINPUTS_METRICS_PREFIX);
 
-    ApplicationConfig applicationConfig = new ApplicationConfig(config);
+    final ApplicationConfig applicationConfig = new ApplicationConfig(config);
 
     this.sideInputRunLoop = new RunLoop(sideInputTasks,
         null, // all operations are executed in the main runloop thread
@@ -1033,7 +1034,9 @@ public class ContainerStorageManager {
         System::nanoTime,
         false,
         DEFAULT_SIDE_INPUT_ELASTICITY_FACTOR,
-        applicationConfig.getRunId()); // commit must be synchronous to ensure integrity of state flush
+        applicationConfig.getRunId(),
+        ApplicationUtil.isHighLevelApiJob(config)
+        ); // commit must be synchronous to ensure integrity of state flush
 
     try {
       sideInputsExecutor.submit(() -> {
