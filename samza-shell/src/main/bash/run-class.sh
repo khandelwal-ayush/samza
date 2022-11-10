@@ -148,14 +148,6 @@ function check_and_enable_64_bit_mode {
   fi
 }
 
-# Try and use the -XX:+PrintGCDateStamps jvm argument. Java11 will fail
-function check_and_enable_print_gc_datestamps {
-  `$JAVA -XX:+PrintGCDateStamps -version`
-  if [ $? -eq 0 ] ; then
-    JAVA_OPTS="$JAVA_OPTS -XX:+PrintGCDateStamps"
-  fi
-}
-
 ### Inherit JVM_OPTS from task.opts configuration, and initialize defaults ###
 
 # Make the MDC inheritable to child threads by setting the system property to true if config not explicitly specified
@@ -199,7 +191,7 @@ fi
 [[ $JAVA_OPTS != *-Xmx* ]] && JAVA_OPTS="$JAVA_OPTS -Xmx768M"
 
 # Check if the GC related flags are specified. If not - add the respective flags to JVM_OPTS.
-[[ $JAVA_OPTS != *-Xloggc* ]] && JAVA_OPTS="$JAVA_OPTS -Xloggc:$SAMZA_LOG_DIR/gc.log"
+[[ $JAVA_OPTS != *PrintGCDateStamps* && $JAVA_OPTS != *-Xloggc* ]] && JAVA_OPTS="$JAVA_OPTS -XX:+PrintGCDateStamps -Xloggc:$SAMZA_LOG_DIR/gc.log"
 
 # Check if GC log rotation is already enabled. If not - add the respective flags to JVM_OPTS
 [[ $JAVA_OPTS != *UseGCLogFileRotation* ]] && check_and_enable_gc_log_rotation
