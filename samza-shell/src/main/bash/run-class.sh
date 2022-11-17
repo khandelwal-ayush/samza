@@ -63,6 +63,20 @@ echo BASE_LIB_DIR=$BASE_LIB_DIR
 
 CLASSPATH=""
 
+# when APPLICATION_LIB_DIR is different from BASE_LIB_DIR, meaning it is a Managed Beam Workflow job, append
+# user jars in __userPackage/lib to the classpath
+# TODO - In the initial version of Managed Beam Workflow job, it's ensured that no extra jars are supplied from the
+# user job besides the user jar that only contains the pipeline proto file and non-jar resources. When simple UDF
+# support is to be added, we need to ensure no jar or class collision happens while combining user jars with framework jars
+# on classpath
+if [ "$APPLICATION_LIB_DIR" != "$BASE_LIB_DIR" ]; then
+  for file in $APPLICATION_LIB_DIR/*.[jw]ar;
+  do
+    CLASSPATH=$CLASSPATH" $file \n"
+  done
+  echo generated from $APPLICATION_LIB_DIR CLASSPATH=$CLASSPATH
+fi
+
 # This is LinkedIn Hadoop cluster specific dependency! The jar file is needed
 # for the Samza job to run on LinkedIn's Hadoop YARN cluster.
 # There is no clean way to include this dependency anywhere else, so we just
@@ -80,20 +94,6 @@ do
   CLASSPATH=$CLASSPATH" $file \n"
 done
 echo generated from BASE_LIB_DIR CLASSPATH=$CLASSPATH
-
-# when APPLICATION_LIB_DIR is different from BASE_LIB_DIR, meaning it is a Managed Beam Workflow job, append
-# user jars in __userPackage/lib to the classpath
-# TODO - In the initial version of Managed Beam Workflow job, it's ensured that no extra jars are supplied from the
-# user job besides the user jar that only contains the pipeline proto file and non-jar resources. When simple UDF
-# support is to be added, we need to ensure no jar or class collision happens while combining user jars with framework jars
-# on classpath
-if [ "$APPLICATION_LIB_DIR" != "$BASE_LIB_DIR" ]; then
-  for file in $APPLICATION_LIB_DIR/*.[jw]ar;
-  do
-    CLASSPATH=$CLASSPATH" $file \n"
-  done
-  echo generated from $APPLICATION_LIB_DIR CLASSPATH=$CLASSPATH
-fi
 
 # In some cases (AWS) $JAVA_HOME/bin doesn't contain jar.
 if [ -z "$JAVA_HOME" ] || [ ! -e "$JAVA_HOME/bin/jar" ]; then
