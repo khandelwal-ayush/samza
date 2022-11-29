@@ -40,7 +40,6 @@ import org.apache.samza.job.model.TaskModel;
 import org.apache.samza.metrics.MetricsRegistry;
 import org.apache.samza.system.SSPMetadataCache;
 import org.apache.samza.system.StreamMetadataCache;
-import org.apache.samza.system.SystemAdmin;
 import org.apache.samza.system.SystemAdmins;
 import org.apache.samza.system.SystemStream;
 import org.apache.samza.system.SystemStreamPartition;
@@ -67,14 +66,13 @@ public class KafkaChangelogStateBackendFactory implements StateBackendFactory {
   public TaskBackupManager getBackupManager(JobContext jobContext,
       ContainerModel containerModel,
       TaskModel taskModel,
-      Map<String, SystemAdmin> systemNameSystemAdminsMap,
       ExecutorService backupExecutor,
       MetricsRegistry metricsRegistry,
       Config config,
       Clock clock,
       File loggedStoreBaseDir,
       File nonLoggedStoreBaseDir) {
-    SystemAdmins systemAdmins = new SystemAdmins(systemNameSystemAdminsMap);
+    SystemAdmins systemAdmins = new SystemAdmins(config);
     StorageConfig storageConfig = new StorageConfig(config);
     Map<String, SystemStream> storeChangelogs = storageConfig.getStoreChangelogs();
 
