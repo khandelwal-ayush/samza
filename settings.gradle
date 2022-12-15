@@ -71,8 +71,21 @@ gradle.taskGraph.whenReady { taskGraph ->
   }
 }
 
-// NOTE: the following settings is for LinkedIn only. 
+// NOTE: the following settings is for LinkedIn only.
 // Do not merge back to master branch
 if (file('../adaptSettings.gradle').exists()) {
   apply from: '../adaptSettings.gradle'
+}
+
+/**
+ * NOTE: the following setting is for LinkedIn only.
+ * Exclude samza-yarn3 tasks from build as we do not support yarn3 yet.
+ * */
+gradle.taskGraph.whenReady { taskGraph ->
+  taskGraph.getAllTasks().each { task ->
+    def project = task.getProject()
+    task.onlyIf {
+      project.getName() != "samza-yarn3_$scalaSuffix" && project.getName() != "samza-shell-yarn3"
+    }
+  }
 }
