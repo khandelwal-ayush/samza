@@ -665,6 +665,12 @@ project(":samza-shell") {
   }
 }
 
+// ** Linkedin specific change **
+// This gradle submodule and its tasks have been commented out as the OSS patch didn't add a directory for it and
+// samza-li wrapper mp expects a folder to be present.
+// Enable the task once we are ready to test samza jobs with yarn 3. Alternatively, create a folder for samza-shell-yarn3
+// and copy and bash and resource files from samza-shell which the tar task is doing anyway.
+/*
 project(":samza-shell-yarn3") {
   apply plugin: 'java'
 
@@ -731,6 +737,7 @@ project(":samza-shell-yarn3") {
     jvmArgs = ["-Dlog4j.configurationFile=file:src/main/resources/log4j2-console.xml"]
   }
 }
+*/
 
 project(":samza-kv_$scalaSuffix") {
   apply plugin: 'scala'
