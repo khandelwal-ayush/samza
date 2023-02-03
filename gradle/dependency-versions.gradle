@@ -56,5 +56,5 @@
   couchbaseClientVersion = "2.7.2"
   couchbaseMockVersion = "1.5.22"
   yarn3Version = "3.3.4"
-  oshiVersion = "6.3.0"
+  oshiVersion = "6.2.2"
 }
