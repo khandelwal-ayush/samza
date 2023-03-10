@@ -43,7 +43,7 @@
   metricsVersion = "2.2.0"
   mockitoVersion = "1.10.19"
   powerMockVersion = "1.6.6"
-  rocksdbVersion = "7.0.3"
+  rocksdbVersion = "7.8.3"
   scalaTestVersion = "3.0.1"
   snappyVersion = "1.1.8.4"
   slf4jVersion = "1.7.7"
