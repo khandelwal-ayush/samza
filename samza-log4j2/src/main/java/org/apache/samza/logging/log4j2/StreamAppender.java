@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.logging.log4j.core.Filter;
 import org.apache.logging.log4j.core.Layout;
 import org.apache.logging.log4j.core.LogEvent;
@@ -84,6 +85,12 @@ public class StreamAppender extends AbstractAppender {
   private String streamName = null;
   private final boolean usingAsyncLogger;
   private final LoggingContextHolder loggingContextHolder;
+
+  /**
+   * used to detect if this thread is called recursively
+   */
+  private final AtomicBoolean recursiveCall = new AtomicBoolean(false);
+
   protected static final int DEFAULT_QUEUE_SIZE = 100;
   protected volatile boolean systemInitialized = false;
   protected StreamAppenderMetrics metrics;
@@ -182,30 +189,37 @@ public class StreamAppender extends AbstractAppender {
 
   @Override
   public void append(LogEvent event) {
-    try {
-      if (!systemInitialized) {
-        // configs are needed to set up producer system, so check that before actually initializing
-        if (this.loggingContextHolder.getConfig() != null) {
-          synchronized (this) {
-            if (!systemInitialized) {
-              setupSystem();
-              systemInitialized = true;
+    if (!recursiveCall.get()) {
+      try {
+        recursiveCall.set(true);
+        if (!systemInitialized) {
+          // configs are needed to set up producer system, so check that before actually initializing
+          if (this.loggingContextHolder.getConfig() != null) {
+            synchronized (this) {
+              if (!systemInitialized) {
+                setupSystem();
+                systemInitialized = true;
+              }
             }
+            handleEvent(event);
+          } else {
+            // skip sending the log to the stream if initialization can't happen yet
+            System.out.println("Waiting for config to become available before log can be handled");
           }
-          handleEvent(event);
         } else {
-          // skip sending the log to the stream if initialization can't happen yet
-          System.out.println("Waiting for config to become available before log can be handled");
+          handleEvent(event);
         }
-      } else {
-        handleEvent(event);
+      } catch (Exception e) {
+        if (metrics != null) { // setupSystem() may not have been invoked yet so metrics can be null here.
+          metrics.logMessagesErrors.inc();
+        }
+        System.err.println(String.format("[%s] Error sending log message:", getName()));
+        e.printStackTrace();
+      } finally {
+        recursiveCall.set(false);
       }
-    } catch (Exception e) {
-      if (metrics != null) { // setupSystem() may not have been invoked yet so metrics can be null here.
-        metrics.logMessagesErrors.inc();
-      }
-      System.err.println(String.format("[%s] Error sending log message:", getName()));
-      e.printStackTrace();
+    } else if (metrics != null) { // setupSystem() may not have been invoked yet so metrics can be null here.
+      metrics.recursiveCalls.inc();
     }
   }
 
