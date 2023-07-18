@@ -70,7 +70,14 @@ public class TaskFactoryUtil {
    * @return {@link TaskFactory} object defined by {@code appDesc}
    */
   public static TaskFactory getTaskFactory(ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc) {
-    return getTaskFactoryWithConfig(appDesc, appDesc.getConfig());
+    if (appDesc instanceof TaskApplicationDescriptorImpl) {
+      return ((TaskApplicationDescriptorImpl) appDesc).getTaskFactory();
+    } else if (appDesc instanceof StreamApplicationDescriptorImpl) {
+      return (AsyncStreamTaskFactory) () -> new StreamOperatorTask(
+          ((StreamApplicationDescriptorImpl) appDesc).getOperatorSpecGraph());
+    }
+    throw new IllegalArgumentException(String.format("ApplicationDescriptorImpl has to be either TaskApplicationDescriptorImpl or "
+        + "StreamApplicationDescriptorImpl. class %s is not supported", appDesc.getClass().getName()));
   }
 
   /**
@@ -123,50 +130,16 @@ public class TaskFactoryUtil {
    */
   public static TaskFactory finalizeTaskFactory(TaskFactory factory, ExecutorService taskThreadPool) {
     validateFactory(factory);
-    /*
-     * We only want to use this instance to determine the control flow and not use this task within the actual factory
-     * lambdas. It is to ensure the lifecycle of the task created within the factory are independent and contained across
-     * multiple createInstance() invocation on the factory.
-     */
-    Object task = factory.createInstance();
+    boolean isAsyncTaskClass = factory instanceof AsyncStreamTaskFactory;
 
-    // Always adapt StreamTask to AsyncStreamTaskAdapter
-    if (task instanceof StreamTask) {
-      return (AsyncStreamTaskFactory) () -> {
-        log.info("Converting StreamTask to AsyncStreamTaskAdapter");
-        return new AsyncStreamTaskAdapter((StreamTask) factory.createInstance(), taskThreadPool);
-      };
+    if (isAsyncTaskClass) {
+      log.info("Got an AsyncStreamTask implementation.");
+      return factory;
     }
 
-    /*
-     * Note: Even though StreamOperatorTask is an instanceof AsyncStreamTask, we still need to
-     * adapt it in order to inject the container thread pool. Long term, this will go away once we have the
-     * InternalTaskContext refactor, which would then become the entry point for exposing any of the runtime objects
-     * created in the container.
-     * Refer to SAMZA-2203 for more details.
-     */
-    if (task instanceof BaseLiTask) {
-      Object wrappedTask = ((BaseLiTask) task).getTask();
-      if (wrappedTask instanceof StreamOperatorTask) {
-        return (AsyncStreamTaskFactory) () -> {
-          log.info("Injecting thread pool for a wrapped StreamOperatorTask.");
-          BaseLiTask outerTask = (BaseLiTask) factory.createInstance();
-          StreamOperatorTask streamOperatorTask = (StreamOperatorTask) outerTask.getTask();
-          streamOperatorTask.setTaskThreadPool(taskThreadPool);
-          return (AsyncStreamTask) outerTask;
-        };
-      }
-    } else if (task instanceof StreamOperatorTask) {
-      return (AsyncStreamTaskFactory) () -> {
-        log.info("Injecting thread pool for a StreamOperatorTask.");
-        StreamOperatorTask streamOperatorTask = (StreamOperatorTask) factory.createInstance();
-        streamOperatorTask.setTaskThreadPool(taskThreadPool);
-        return streamOperatorTask;
-      };
-    }
-
-    log.info("Got an AsyncStreamTask implementation.");
-    return factory;
+    log.info("Converting StreamTask to AsyncStreamTaskAdapter");
+    return (AsyncStreamTaskFactory) () ->
+        new AsyncStreamTaskAdapter(((StreamTaskFactory) factory).createInstance(), taskThreadPool);
   }
 
   private static void validateFactory(TaskFactory factory) {
@@ -178,8 +151,8 @@ public class TaskFactoryUtil {
             || factory instanceof AsyncStreamTaskFactory;
 
     if (!isValidFactory) {
-      throw new SamzaException(String.format("TaskFactory must be either StreamTaskFactory or AsyncStreamTaskFactory."
-              + " %s is not supported", factory.getClass()));
+      throw new SamzaException(String.format("TaskFactory must be either StreamTaskFactory or AsyncStreamTaskFactory. %s is not supported",
+          factory.getClass()));
     }
   }
 

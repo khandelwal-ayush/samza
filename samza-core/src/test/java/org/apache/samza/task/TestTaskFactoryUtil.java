@@ -22,7 +22,6 @@ import java.lang.reflect.Field;
 import java.util.concurrent.ExecutorService;
 
 import com.google.common.collect.ImmutableMap;
-import com.linkedin.samza.task.wrapper.LiAsyncStreamTask;
 import com.linkedin.samza.task.wrapper.LiStreamTask;
 import org.apache.samza.SamzaException;
 import org.apache.samza.application.descriptors.ApplicationDescriptorImpl;
@@ -101,39 +100,11 @@ public class TestTaskFactoryUtil {
     assertEquals(retFactory, mockAsyncStreamFactory);
   }
 
-  @Test
-  public void testFinalizeTaskFactoryForStreamOperatorTask() {
-    TaskFactory mockFactory = mock(AsyncStreamTaskFactory.class);
-    StreamOperatorTask mockStreamOperatorTask = mock(StreamOperatorTask.class);
-    when(mockFactory.createInstance())
-        .thenReturn(mockStreamOperatorTask);
 
-    ExecutorService mockThreadPool = mock(ExecutorService.class);
-    TaskFactory finalizedFactory = TaskFactoryUtil.finalizeTaskFactory(mockFactory, mockThreadPool);
-    finalizedFactory.createInstance();
-    verify(mockStreamOperatorTask, times(1)).setTaskThreadPool(eq(mockThreadPool));
-  }
-
-  // test getTaskFactory with StreamApplicationDescriptor with Linkedin task wrapper enabled
+  // test getTaskFactory with StreamApplicationDescriptor
   @Test
   public void testGetTaskFactoryWithStreamAppDescriptor() {
     StreamApplicationDescriptorImpl mockStreamApp = mock(StreamApplicationDescriptorImpl.class);
-    when(mockStreamApp.getConfig()).thenReturn(buildConfig(true));
-    OperatorSpecGraph mockSpecGraph = mock(OperatorSpecGraph.class);
-    when(mockStreamApp.getOperatorSpecGraph()).thenReturn(mockSpecGraph);
-    TaskFactory streamTaskFactory = TaskFactoryUtil.getTaskFactory(mockStreamApp);
-    assertTrue(streamTaskFactory instanceof AsyncStreamTaskFactory);
-    AsyncStreamTask streamTask = ((AsyncStreamTaskFactory) streamTaskFactory).createInstance();
-    assertTrue(streamTask instanceof LiAsyncStreamTask);
-    verify(mockSpecGraph).clone();
-  }
-
-  // test getTaskFactory with StreamApplicationDescriptor with Linkedin task wrapper disabled
-  // helps to verify what is passed into the Linkedin task wrapper
-  @Test
-  public void testGetTaskFactoryWithStreamAppDescriptorLiTaskWrapperDisabled() {
-    StreamApplicationDescriptorImpl mockStreamApp = mock(StreamApplicationDescriptorImpl.class);
-    when(mockStreamApp.getConfig()).thenReturn(buildConfig(false));
     OperatorSpecGraph mockSpecGraph = mock(OperatorSpecGraph.class);
     when(mockStreamApp.getOperatorSpecGraph()).thenReturn(mockSpecGraph);
     TaskFactory streamTaskFactory = TaskFactoryUtil.getTaskFactory(mockStreamApp);
@@ -143,16 +114,14 @@ public class TestTaskFactoryUtil {
     verify(mockSpecGraph).clone();
   }
 
-  // test getTaskFactory with TaskApplicationDescriptor with Linkedin task wrapper enabled
+  // test getTaskFactory with TaskApplicationDescriptor
   @Test
   public void testGetTaskFactoryWithTaskAppDescriptor() {
     TaskApplicationDescriptorImpl mockTaskApp = mock(TaskApplicationDescriptorImpl.class);
-    when(mockTaskApp.getConfig()).thenReturn(buildConfig(true));
-    TaskFactory mockTaskFactory = mock(StreamTaskFactory.class);
+    TaskFactory mockTaskFactory = mock(TaskFactory.class);
     when(mockTaskApp.getTaskFactory()).thenReturn(mockTaskFactory);
     TaskFactory taskFactory = TaskFactoryUtil.getTaskFactory(mockTaskApp);
-    assertNotEquals(mockTaskFactory, taskFactory);
-    assertTrue(taskFactory.createInstance() instanceof LiStreamTask);
+    assertEquals(mockTaskFactory, taskFactory);
   }
 
   // test getTaskFactory with TaskApplicationDescriptor with Linkedin task wrapper disabled

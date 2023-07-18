@@ -144,7 +144,7 @@ object TestKeyValuePerformance extends Logging {
           new MetricsRegistryMap,
           null,
           JobContextImpl.fromConfigWithDefaults(storageConfig, null),
-          new ContainerContextImpl(new ContainerModel("0", tasks.asJava), new MetricsRegistryMap), StoreMode.ReadWrite
+          new ContainerContextImpl(new ContainerModel("0", tasks.asJava), new MetricsRegistryMap, null), StoreMode.ReadWrite
         )
 
 
