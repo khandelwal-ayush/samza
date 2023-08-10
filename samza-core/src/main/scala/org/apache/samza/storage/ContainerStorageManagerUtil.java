@@ -57,6 +57,7 @@ import org.apache.samza.util.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 public class ContainerStorageManagerUtil {
   private static final Logger LOG = LoggerFactory.getLogger(ContainerStorageManagerUtil.class);
   public static final String DAVINCI_KV_STORAGE_ENGINE_FACTORY =
@@ -352,7 +353,7 @@ public class ContainerStorageManagerUtil {
   /**
    * Returns a map of backend factory names to subset of provided storeNames that should be restored using it.
    * For CheckpointV1, only includes stores that should be restored using a configured changelog.
-   * For CheckpointV2, associates stores with the highest precedence configured restore factory that has a SCM in
+   * For CheckpointV2, associates stores with the highest precedence configured restore factory that has SCM in
    * the checkpoint, or the highest precedence restore factory configured if there are no SCMs in the checkpoint.
    */
   public static Map<String, Set<String>> getBackendFactoryStoreNames(
