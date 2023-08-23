@@ -97,7 +97,7 @@ public class KafkaConsumerConfig extends HashMap<String, Object> {
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
 
     // LI specific: schemaRegistryRestUrl and bootstrap.server is now only used when deploy on dev/qei
-    if (isLocalDeploymentFabric(System.getenv("SAMZA_ENV"))) {
+    if (isLocalDeploymentFabric(config.get("com.linkedin.app.env"))) {
       // if consumer bootstrap servers are not configured, get them from the producer configs
       if (!subConf.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)) {
         String bootstrapServers =
