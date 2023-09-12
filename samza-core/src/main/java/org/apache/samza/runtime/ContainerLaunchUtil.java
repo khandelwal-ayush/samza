@@ -107,20 +107,21 @@ public class ContainerLaunchUtil {
     // see LISAMZA-21269
     log.warn("Container launched. Sample log to initiate logging-topic creation. "
         + "Ignore this message. ");
+    int exitCode = 0;
     try {
       DiagnosticsUtil.writeMetadataFile(jobName, jobId, containerId, executionEnvContainerId, config);
-      run(appDesc, jobName, jobId, containerId, executionEnvContainerId, samzaEpochId, jobModel, config,
+      exitCode = run(appDesc, jobName, jobId, containerId, executionEnvContainerId, samzaEpochId, jobModel, config,
           buildExternalContext(config));
     } finally {
       // Linkedin-only Offspring shutdown
       ProcessGeneratorHolder.getInstance().stop();
     }
 
-    exitProcess(0);
+    exitProcess(exitCode);
   }
 
   @VisibleForTesting
-  static void run(
+  static int run(
       ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc,
       String jobName,
       String jobId,
@@ -223,13 +224,7 @@ public class ContainerLaunchUtil {
       exitCode = 1;
     } finally {
       coordinatorStreamStore.close();
-      /*
-       * Only exit in the scenario of non-zero exit code in order to maintain parity with current implementation where
-       * the method completes when no errors are encountered.
-       */
-      if (exitCode != 0) {
-        exitProcess(exitCode);
-      }
+      return exitCode;
     }
   }
 

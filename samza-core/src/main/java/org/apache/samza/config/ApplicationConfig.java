@@ -114,4 +114,8 @@ public class ApplicationConfig extends MapConfig {
   public ApplicationApiType getAppApiType() {
     return ApplicationApiType.valueOf(get(APP_API_TYPE, ApplicationApiType.HIGH_LEVEL.name()).toUpperCase());
   }
+
+  public boolean isHighLevelApiJob() {
+    return getAppApiType() == ApplicationApiType.HIGH_LEVEL;
+  }
 }

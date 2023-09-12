@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.samza.SamzaException;
+import org.apache.samza.config.RunLoopConfig;
 import org.apache.samza.system.DrainMessage;
 import org.apache.samza.system.IncomingMessageEnvelope;
 import org.apache.samza.system.MessageType;
@@ -77,8 +78,10 @@ public class RunLoop implements Runnable, Throttleable {
   private final int maxConcurrency;
   private final long windowMs;
   private final long commitMs;
-  private final long callbackTimeoutMs;
+  private final long messageCallbackTimeoutMs;
   private final long drainCallbackTimeoutMs;
+
+  private final long watermarkCallbackTimeoutMs;
   private final long maxIdleMs;
   private final SamzaContainerMetrics containerMetrics;
   private final ScheduledExecutorService workerTimer;
@@ -94,61 +97,69 @@ public class RunLoop implements Runnable, Throttleable {
   private final boolean isHighLevelApiJob;
   private boolean isDraining = false;
 
+  /*
+   * Order of initialization
+   *  1. Initialize fields with arguments passed to the constructor
+   *  2. Initialize fields that are constructed within the constructor
+   *  3. Initialize fields that are derived and constructed using the arguments passed to the constructor
+   */
   public RunLoop(Map<TaskName, RunLoopTask> runLoopTasks,
       ExecutorService threadPool,
       SystemConsumers consumerMultiplexer,
-      int maxConcurrency,
-      long windowMs,
-      long commitMs,
-      long callbackTimeoutMs,
-      long drainCallbackTimeoutMs,
-      long maxThrottlingDelayMs,
-      long maxIdleMs,
       SamzaContainerMetrics containerMetrics,
       HighResolutionClock clock,
-      boolean isAsyncCommitEnabled) {
-    this(runLoopTasks, threadPool, consumerMultiplexer, maxConcurrency, windowMs, commitMs, callbackTimeoutMs,
-        drainCallbackTimeoutMs, maxThrottlingDelayMs, maxIdleMs, containerMetrics, clock, isAsyncCommitEnabled, 1, null, false);
-  }
-
-  public RunLoop(Map<TaskName, RunLoopTask> runLoopTasks,
-      ExecutorService threadPool,
-      SystemConsumers consumerMultiplexer,
-      int maxConcurrency,
-      long windowMs,
-      long commitMs,
-      long callbackTimeoutMs,
-      long drainCallbackTimeoutMs,
-      long maxThrottlingDelayMs,
-      long maxIdleMs,
-      SamzaContainerMetrics containerMetrics,
-      HighResolutionClock clock,
-      boolean isAsyncCommitEnabled,
-      int elasticityFactor,
-      String runId,
-      boolean isHighLevelApiJob) {
+      RunLoopConfig config) {
 
     this.threadPool = threadPool;
     this.consumerMultiplexer = consumerMultiplexer;
     this.containerMetrics = containerMetrics;
-    this.windowMs = windowMs;
-    this.commitMs = commitMs;
-    this.maxConcurrency = maxConcurrency;
-    this.callbackTimeoutMs = callbackTimeoutMs;
-    this.drainCallbackTimeoutMs = drainCallbackTimeoutMs;
-    this.maxIdleMs = maxIdleMs;
-    this.callbackTimer = (callbackTimeoutMs > 0) ? Executors.newSingleThreadScheduledExecutor() : null;
-    this.callbackExecutor = new ThrottlingScheduler(maxThrottlingDelayMs);
-    this.coordinatorRequests = new CoordinatorRequests(runLoopTasks.keySet());
-    this.latch = new Object();
-    this.workerTimer = Executors.newSingleThreadScheduledExecutor();
+
+    this.windowMs = config.getWindowMs();
+    log.info("Got window milliseconds: {}.", windowMs);
+
+    this.commitMs = config.getCommitMs();
+    log.info("Got commit milliseconds: {}.", commitMs);
+
+    this.maxConcurrency = config.getMaxConcurrency();
+    log.info("Got task concurrency: {}.", maxConcurrency);
+
+    this.messageCallbackTimeoutMs = config.getTaskCallbackTimeoutMs();
+    log.info("Got default callback timeout for task in milliseconds: {}.", messageCallbackTimeoutMs);
+
+    this.drainCallbackTimeoutMs = config.getDrainCallbackTimeoutMs();
+    log.info("Got callback timeout for drain in milliseconds: {}.", drainCallbackTimeoutMs);
+
+    this.watermarkCallbackTimeoutMs = config.getWatermarkCallbackTimeoutMs();
+    log.info("Got callback timeout for watermark in milliseconds: {}.", watermarkCallbackTimeoutMs);
+
+    this.maxIdleMs = config.getMaxIdleMs();
+    log.info("Got max idle in milliseconds: {}.", maxIdleMs);
+
     this.clock = clock;
     // assign runId before creating workers. As the inner AsyncTaskWorker class is not static, it relies on
     // the outer class fields to be init first
-    this.runId = runId;
-    this.isHighLevelApiJob = isHighLevelApiJob;
-    this.isAsyncCommitEnabled = isAsyncCommitEnabled;
-    this.elasticityFactor = elasticityFactor;
+    this.runId = config.getRunId();
+    log.info("Got current run Id: {}.", runId);
+
+    this.isHighLevelApiJob = config.isHighLevelApiJob();
+    if (isHighLevelApiJob) {
+      log.info("The application uses high-level API.");
+    } else {
+      log.info("The application doesn't use high-level API.");
+    }
+
+    this.isAsyncCommitEnabled = config.asyncCommitEnabled();
+    log.info("Got async commit enabled={}.", isAsyncCommitEnabled);
+
+    this.elasticityFactor = config.getElasticityFactor();
+    log.info("Got elasticity factor: {}.", elasticityFactor);
+
+    this.latch = new Object();
+    this.workerTimer = Executors.newSingleThreadScheduledExecutor();
+
+    this.callbackTimer = (messageCallbackTimeoutMs > 0) ? Executors.newSingleThreadScheduledExecutor() : null;
+    this.callbackExecutor = new ThrottlingScheduler(config.getMaxThrottlingDelayMs());
+    this.coordinatorRequests = new CoordinatorRequests(runLoopTasks.keySet());
 
     Map<TaskName, AsyncTaskWorker>  workers = new HashMap<>();
     for (RunLoopTask task : runLoopTasks.values()) {
@@ -486,7 +497,7 @@ public class RunLoop implements Runnable, Throttleable {
 
     AsyncTaskWorker(RunLoopTask task) {
       this.task = task;
-      this.callbackManager = new TaskCallbackManager(this, callbackTimer, callbackTimeoutMs, maxConcurrency, clock);
+      this.callbackManager = new TaskCallbackManager(this, callbackTimer, messageCallbackTimeoutMs, maxConcurrency, clock);
       Set<SystemStreamPartition> sspSet = getWorkingSSPSet(task);
       this.state = new AsyncTaskState(task.taskName(), task.metrics(), sspSet, !task.intermediateStreams().isEmpty(), isHighLevelApiJob,
           runId);
@@ -629,9 +640,24 @@ public class RunLoop implements Runnable, Throttleable {
           containerMetrics.processes().inc();
           // report 1 whenever the contaienr is running. Can be used to calculate the number of containers not running
           containerMetrics.containerRunning().set(1L);
-          return isDraining && (envelope.isDrain() || envelope.isWatermark())
-              ? callbackManager.createCallbackForDrain(task.taskName(), envelope, coordinator, drainCallbackTimeoutMs)
-              : callbackManager.createCallback(task.taskName(), envelope, coordinator);
+
+          /*
+           * Timeout used in the task callback. The value is determined based on the following logic
+           * 1. If run loop is in draining mode and the envelope is drain, use drainCallbackTimeoutMs
+           * 2. If the envelope is watermark, use watermarkCallbackTimeoutMs regardless of the modes. Setting a lower
+           *    watermark callback timeout during draining mode can cause drain to be unsuccessful prematurely and
+           *    vice-versa.
+           * 3. Use callbackTimeoutMs otherwise
+           */
+          long timeout = messageCallbackTimeoutMs;
+
+          if (envelope.isWatermark()) {
+            timeout = watermarkCallbackTimeoutMs;
+          } else if (isDraining && envelope.isDrain()) {
+            timeout = drainCallbackTimeoutMs;
+          }
+
+          return callbackManager.createCallback(task.taskName(), envelope, coordinator, timeout);
         }
       };
 

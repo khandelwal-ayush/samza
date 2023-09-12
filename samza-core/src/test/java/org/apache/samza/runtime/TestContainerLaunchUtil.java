@@ -19,6 +19,7 @@
 
 package org.apache.samza.runtime;
 
+import com.linkedin.samza.generator.internal.ProcessGeneratorHolder;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +38,7 @@ import static org.mockito.Mockito.*;
 
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(ContainerLaunchUtil.class)
+@PrepareForTest({ContainerLaunchUtil.class, ProcessGeneratorHolder.class})
 public class TestContainerLaunchUtil {
   private static final String JOB_NAME = "test-job";
   private static final String JOB_ID = "test-job-i001";
@@ -61,8 +62,39 @@ public class TestContainerLaunchUtil {
         .when(ContainerLaunchUtil.class, "run", eq(APP_DESC), eq(JOB_NAME), eq(JOB_ID), eq(CONTAINER_ID), any(), any(),
             eq(JOB_MODEL), eq(CONFIG), any());
 
-    ContainerLaunchUtil.run(APP_DESC, JOB_NAME, JOB_ID, CONTAINER_ID, Optional.empty(), Optional.empty(), JOB_MODEL,
+    int exitCode = ContainerLaunchUtil.run(APP_DESC, JOB_NAME, JOB_ID, CONTAINER_ID, Optional.empty(), Optional.empty(), JOB_MODEL,
         CONFIG, Optional.empty());
+    assertEquals(1, exitCode);
+  }
+
+  @Test
+  public void testRunSuccessfully() throws Exception {
+    int exitCode = 0;
+    final CountDownLatch completionLatch = new CountDownLatch(1);
+
+    ProcessGeneratorHolder mockProcessGeneratorHolder = PowerMockito.mock(ProcessGeneratorHolder.class);
+    PowerMockito.mockStatic(ProcessGeneratorHolder.class);
+    PowerMockito.when(ProcessGeneratorHolder.getInstance()).thenReturn(mockProcessGeneratorHolder);
+    doNothing().when(mockProcessGeneratorHolder).createGenerator(any());
+    doNothing().when(mockProcessGeneratorHolder).start();
+    doNothing().when(mockProcessGeneratorHolder).stop();
+
+    PowerMockito.mockStatic(ContainerLaunchUtil.class);
+    PowerMockito.doReturn(mock(CoordinatorStreamStore.class))
+        .when(ContainerLaunchUtil.class, "buildCoordinatorStreamStore", eq(CONFIG), any());
+    PowerMockito.doAnswer(invocation -> {
+      completionLatch.countDown();
+      return null;
+    }).when(ContainerLaunchUtil.class, "exitProcess", eq(exitCode));
+    PowerMockito.doReturn(exitCode)
+        .when(ContainerLaunchUtil.class, "run", eq(APP_DESC), eq(JOB_NAME), eq(JOB_ID), eq(CONTAINER_ID), any(), any(),
+            eq(JOB_MODEL), eq(CONFIG), any());
+    PowerMockito.doCallRealMethod()
+        .when(ContainerLaunchUtil.class, "run", eq(APP_DESC), eq(JOB_NAME), eq(JOB_ID), eq(CONTAINER_ID), any(), any(),
+            eq(JOB_MODEL));
+
+    ContainerLaunchUtil.run(APP_DESC, JOB_NAME, JOB_ID, CONTAINER_ID, Optional.empty(), Optional.empty(), JOB_MODEL);
     assertTrue(completionLatch.await(1, TimeUnit.SECONDS));
+    verify(mockProcessGeneratorHolder, times(1)).stop();
   }
 }
