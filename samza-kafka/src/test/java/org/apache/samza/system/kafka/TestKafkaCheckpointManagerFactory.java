@@ -19,6 +19,7 @@
 
 package org.apache.samza.system.kafka;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.KafkaConfig;
 import org.apache.samza.config.MapConfig;
@@ -37,8 +38,10 @@ public class TestKafkaCheckpointManagerFactory {
     Map<String, String> config = new HashMap<>();
     Properties properties = new KafkaConfig(new MapConfig(config)).getCheckpointTopicProperties();
 
-    assertEquals(properties.getProperty("cleanup.policy"), "compact");
+    // Linkedin specific change to have cleanup policy for topic as compact, delete and 28 days retention.
+    assertEquals(properties.getProperty("cleanup.policy"), "compact,delete");
     assertEquals(properties.getProperty("segment.bytes"), String.valueOf(KafkaConfig.DEFAULT_CHECKPOINT_SEGMENT_BYTES()));
+    assertEquals(properties.getProperty("retention.ms"), String.valueOf(TimeUnit.DAYS.toMillis(28)));
 
     config.put(ApplicationConfig.APP_MODE, ApplicationConfig.ApplicationMode.BATCH.name());
     properties = new KafkaConfig(new MapConfig(config)).getCheckpointTopicProperties();
