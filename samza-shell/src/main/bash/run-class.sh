@@ -45,6 +45,21 @@ BASE_LIB_DIR="$base_dir/lib"
 DEFAULT_LOG4J_FILE=$BASE_LIB_DIR/$LOG4J_FILE_NAME
 DEFAULT_LOG4J2_FILE=$BASE_LIB_DIR/$LOG4J2_FILE_NAME
 
+# HADOOP_CONF_DIR points to the config directory of samza-nodemanager, which contains more config files
+# than needed to start the container. yarn-site.xml is observed to be the only config file needed for the container
+# to start successfully. Including other config files beside yarn-site.xml can cause problem for the container
+# to access Grid. The change below copy the yarn-site.xml file from HADOOP_CONF_DIR to a new directory ($base_dir/yarn_config)
+# and supply it to the classpath later.
+echo HADOOP_CONF_DIR=$HADOOP_CONF_DIR
+YARN_SITE_CONF_DIR=$base_dir/yarn_config
+mkdir -p $YARN_SITE_CONF_DIR
+if [ -f $HADOOP_CONF_DIR/yarn-site.xml ]; then
+  cp $HADOOP_CONF_DIR/yarn-site.xml $YARN_SITE_CONF_DIR
+else
+  YARN_SITE_CONF_DIR=$HADOOP_CONF_DIR
+fi
+echo YARN_SITE_CONF_DIR=$YARN_SITE_CONF_DIR
+
 # For Managed Beam Workflow type jobs, user jar and log4j2.xml will be placed under __userPackage/lib.
 # If __userPackage/lib exists, set APPLICATION_LIB_DIR to __userPackage/lib
 # TODO - use parameter like job type (WORKFLOW_DSL) to decide whether there is a separate user lib path
@@ -263,14 +278,14 @@ setup_boot_jars_in_jvm_boot_classpath
 # Check if we can use PrintGCDateStamps. Java 11 will fail if this is provided, Java 8 is fine
 [[ $JAVA_OPTS != *PrintGCDateStamps* ]] && check_and_enable_print_gc_datestamps
 
-# HADOOP_CONF_DIR should be supplied to classpath explicitly for Yarn to parse configs
-echo $JAVA $JAVA_OPTS -cp $HADOOP_CONF_DIR:$PATHING_JAR_FILE "$@"
+# YARN_SITE_CONF_DIR should be supplied to classpath explicitly for Yarn to parse configs
+echo $JAVA $JAVA_OPTS -cp $YARN_SITE_CONF_DIR:$PATHING_JAR_FILE "$@"
 
 ## If localized resource lib directory is defined, then include it in the classpath.
 if [[ -z "${ADDITIONAL_CLASSPATH_DIR}" ]]; then
   # LI-specific: Adding option to invoke script on OOM here because adding it in JAVA_OPTS causes encoding issues https://stackoverflow.com/questions/12532051/xxonoutofmemoryerror-cmd-arg-gives-error-could-not-find-or-load-main-c
-  exec $JAVA $JAVA_OPTS -XX:OnOutOfMemoryError="$BASE_LIB_DIR/../bin/handle-oom.sh $SAMZA_LOG_DIR" -cp $HADOOP_CONF_DIR:$PATHING_JAR_FILE "$@"
+  exec $JAVA $JAVA_OPTS -XX:OnOutOfMemoryError="$BASE_LIB_DIR/../bin/handle-oom.sh $SAMZA_LOG_DIR" -cp $YARN_SITE_CONF_DIR:$PATHING_JAR_FILE "$@"
 else
   # LI-specific: Adding option to invoke script on OOM here because adding it in JAVA_OPTS causes encoding issues https://stackoverflow.com/questions/12532051/xxonoutofmemoryerror-cmd-arg-gives-error-could-not-find-or-load-main-c
-  exec $JAVA $JAVA_OPTS -XX:OnOutOfMemoryError="$BASE_LIB_DIR/../bin/handle-oom.sh $SAMZA_LOG_DIR" -cp $HADOOP_CONF_DIR:$PATHING_JAR_FILE:$ADDITIONAL_CLASSPATH_DIR "$@"
+  exec $JAVA $JAVA_OPTS -XX:OnOutOfMemoryError="$BASE_LIB_DIR/../bin/handle-oom.sh $SAMZA_LOG_DIR" -cp $YARN_SITE_CONF_DIR:$PATHING_JAR_FILE:$ADDITIONAL_CLASSPATH_DIR "$@"
 fi
