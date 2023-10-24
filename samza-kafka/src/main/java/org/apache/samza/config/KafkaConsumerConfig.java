@@ -96,18 +96,20 @@ public class KafkaConsumerConfig extends HashMap<String, Object> {
     LOG.info("setting auto.offset.reset for system {} to {}", systemName, autoOffsetReset);
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
 
-    // LI specific: schemaRegistryRestUrl and bootstrap.server is now only used when deploy on dev/qei
-    if (isLocalDeploymentFabric(config.get("com.linkedin.app.env"))) {
-      // if consumer bootstrap servers are not configured, get them from the producer configs
-      if (!subConf.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)) {
-        String bootstrapServers =
-            config.get(String.format("systems.%s.producer.%s", systemName, ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
-        if (StringUtils.isEmpty(bootstrapServers)) {
-          throw new SamzaException("Missing " + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG + " config  for " + systemName);
-        }
-        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    // LI specific: per LISAMZA-22563, schemaRegistryRestUrl and bootstrap.server is now only used when deploy on dev/qei
+    // however, per LISAMZA-34303, we temporarily remove the condition of local deploy to add back bootstrap.server to avoid
+    // failure in resized jobs.
+    // if (isLocalDeploymentFabric(config.get("com.linkedin.app.env"))) {
+    // if consumer bootstrap servers are not configured, get them from the producer configs
+    if (!subConf.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)) {
+      String bootstrapServers =
+          config.get(String.format("systems.%s.producer.%s", systemName, ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
+      if (StringUtils.isEmpty(bootstrapServers)) {
+        throw new SamzaException("Missing " + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG + " config  for " + systemName);
       }
-    }
+      consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+      }
+    //}
 
     // Always use default partition assignment strategy. Do not allow override.
     consumerProps.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, RangeAssignor.class.getName());
