@@ -22,7 +22,7 @@ package org.apache.samza.job.yarn
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.samza.clustermanager.SamzaApplicationState
-import org.apache.samza.config.Config
+import org.apache.samza.config.{Config, JobConfig}
 import org.apache.samza.coordinator.CoordinationConstants
 import org.apache.samza.coordinator.server.HttpServer
 import org.apache.samza.coordinator.stream.CoordinatorStreamWriter
@@ -64,12 +64,13 @@ class SamzaYarnAppMasterService(config: Config, samzaAppState: SamzaApplicationS
     state.trackingUrl = webApp.getUrl
     state.coordinatorUrl = samzaAppState.jobModelManager.server.getUrl
 
-    //write server url to coordinator stream
-    val coordinatorStreamWriter: CoordinatorStreamWriter = new CoordinatorStreamWriter(config)
-    coordinatorStreamWriter.start()
-    coordinatorStreamWriter.sendMessage(SetConfig.TYPE, SERVER_URL_OPT, state.coordinatorUrl.toString)
-    coordinatorStreamWriter.stop()
-    debug("Sent server url message with value: %s " format state.coordinatorUrl.toString)
+    /* If live deployment is not enabled, we write AM's info on coordinator stream here,
+     * If live deployment is enabled, then we do this after killing existing job with
+     * its AM and containers. We do this so that containers always get correct AM info.
+     */
+    if (!(new JobConfig(config).getLiveDeploymentEnabled())) {
+      writeServerUrlToCoordinatorStream();
+    }
 
     info("Webapp is started at (rpc %s, tracking %s, coordinator %s)" format(state.rpcUrl, state.trackingUrl, state.coordinatorUrl))
 
@@ -82,6 +83,15 @@ class SamzaYarnAppMasterService(config: Config, samzaAppState: SamzaApplicationS
       }
     }
 
+  }
+
+  def writeServerUrlToCoordinatorStream(): Unit = {
+    //write server url to coordinator stream -
+    val coordinatorStreamWriter: CoordinatorStreamWriter = new CoordinatorStreamWriter(config)
+    coordinatorStreamWriter.start()
+    coordinatorStreamWriter.sendMessage(SetConfig.TYPE, SERVER_URL_OPT, state.coordinatorUrl.toString)
+    coordinatorStreamWriter.stop()
+    debug("Sent server url message with value: %s " format state.coordinatorUrl.toString)
   }
 
   def onShutdown() {

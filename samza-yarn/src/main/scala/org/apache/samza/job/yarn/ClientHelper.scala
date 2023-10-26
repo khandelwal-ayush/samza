@@ -260,7 +260,7 @@ class ClientHelper(conf: Configuration) extends Logging {
     applicationReports
       .asScala
         .filter(applicationReport => appName.equals(applicationReport.getName)
-          && isActiveApplication(applicationReport))
+          && isActiveApplication(applicationReport)).sortBy(_.getStartTime)
         .map(applicationReport => applicationReport.getApplicationId)
         .toList
   }

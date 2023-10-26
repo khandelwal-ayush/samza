@@ -49,6 +49,7 @@ import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.ShellCommandConfig;
 import org.apache.samza.config.YarnConfig;
 import org.apache.samza.coordinator.JobModelManager;
+import org.apache.samza.job.ApplicationStatus;
 import org.apache.samza.job.CommandBuilder;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.apache.samza.util.Util;
@@ -83,6 +84,8 @@ public class YarnClusterResourceManager extends ClusterResourceManager implement
 
   private static final int PREFERRED_HOST_PRIORITY = 0;
   private static final int ANY_HOST_PRIORITY = 1;
+
+  private static final int LIVE_DEPLOYMENT_KILL_WAITTIME_FOR_OLD_AM_IN_MS = 50000;
 
   private static final String INVALID_PROCESSOR_ID = "-1";
 
@@ -202,6 +205,77 @@ public class YarnClusterResourceManager extends ClusterResourceManager implement
 
   }
 
+  /* Enable live deployment which reduces job down-time by spawning a new AM while
+   * old job with its AM and containers is still live and working. In this case,
+   * RM should return two apps while new AM is being spawned up.
+   * One of those should already be in running state. This code path
+   * is called when new AM is ready to spawn up the containers. We kill old app which
+   * would kill old AM and all its containers, we wait for status to move to KILLED
+   * and then continue with container creation for current deployment.
+   */
+  public void executeLiveDeployment() {
+    YarnJobFactory jobFactory = new YarnJobFactory();
+    YarnJob yarnJob = jobFactory.getJob(this.config);
+    JobConfig jobConfig = new JobConfig(this.config);
+    ClientHelper client = yarnJob.client();
+    String applicationName = String.format("%s_%s", jobConfig.getName().get(), jobConfig.getJobId());
+
+    scala.collection.immutable.List<ApplicationId> activeApps= client.getActiveApplicationIds(applicationName);
+    log.info("Active applications: " + activeApps);
+    if(activeApps.isEmpty()){
+      /* we should get at least one active app id from RM, which is current app attempt */
+      throw new SamzaException("There are 0 active jobs. There should be at least one job which is being deployed right now.");
+    } else if(activeApps.size()==1){
+      log.info("There is only one active app id - " + activeApps.head() + " which should be the one currently being deployed.");
+      return;
+    } else if (activeApps.size()>2){
+      throw new SamzaException("There are more than 2 active app ids. There should be at most two, one already running app and another which is being deployed. Active apps - " + activeApps);
+    }
+
+    /* The apps are returned already sorted based on time.
+     * oldApp is the app which was already running on cluster.
+     * newApp is the app which is created with new deployment request and is being deployed right now.
+     */
+    ApplicationId newApp = activeApps.last();
+    ApplicationId oldApp = activeApps.head();
+    if (client.status(newApp).get() == ApplicationStatus.Running) {
+      throw new SamzaException("New app is in RUNNING state, this should not happen since AM is still being created.");
+    }
+
+    /* Kill old app */
+    if (client.status(oldApp).get() == ApplicationStatus.Running) {
+      try {
+        log.info("Old app is running, kill it.");
+        client.kill(oldApp);
+      } catch (Exception e) {
+        throw new SamzaException("Error in killing old app.", e);
+      }
+    } else {
+      throw new SamzaException("Old app should be running, but it has status - " + client.status(oldApp).get());
+    }
+
+    /* We killed Old app, wait for it to move to KILLED state till timeout. */
+    long startTime = System.currentTimeMillis();
+    while (client.status(oldApp).get() == ApplicationStatus.Running
+            && (System.currentTimeMillis() - startTime) < LIVE_DEPLOYMENT_KILL_WAITTIME_FOR_OLD_AM_IN_MS) {
+      try {
+        java.lang.Thread.sleep(2000);
+        log.info("Old app " + oldApp + " is not killed yet, checking again.");
+      } catch (Exception e){
+        throw new SamzaException("Error in checking old app status.", e);
+      }
+    }
+
+    if (client.status(oldApp).get() == ApplicationStatus.Running) {
+      throw new SamzaException("Old app did not move to KILLED state before timeout.");
+    }
+
+    /* Old app is killed, its AM and containers are gone.
+     * Now continue with container creation of new app.
+     */
+    service.writeServerUrlToCoordinatorStream();
+  }
+
   /**
    * Starts the YarnClusterResourceManager and initialize all its sub-systems.
    * Attempting to start an already started cluster manager will return immediately.
@@ -220,6 +294,13 @@ public class YarnClusterResourceManager extends ClusterResourceManager implement
     nmClientAsync.init(yarnConfiguration);
     nmClientAsync.start();
     Set<ContainerId> previousAttemptsContainers = lifecycle.onInit();
+
+    /* Check if live deployment is enabled. */
+    if (new JobConfig(config).getLiveDeploymentEnabled()) {
+      log.info("Live deployment is enabled.");
+      executeLiveDeployment();
+    }
+
     metrics.setContainersFromPreviousAttempts(previousAttemptsContainers.size());
 
     if (new JobConfig(config).getApplicationMasterHighAvailabilityEnabled()) {

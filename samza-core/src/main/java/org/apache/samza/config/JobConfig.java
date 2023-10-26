@@ -190,6 +190,11 @@ public class JobConfig extends MapConfig {
   public static final String CONTAINER_HEARTBEAT_MONITOR_ENABLED = "job.container.heartbeat.monitor.enabled";
   private static final boolean CONTAINER_HEARTBEAT_MONITOR_ENABLED_DEFAULT = true;
 
+  // Enable live deployment, in which we spawn a new AM while existing AM is still running
+  // to reduce job downtime. It is disabled by default.
+  public static final String JOB_LIVE_DEPLOYMENT_ENABLED = "job.live-deployment.enabled";
+  public static final boolean JOB_LIVE_DEPLOYMENT_ENABLED_DEFAULT = false;
+
 
   // Enabled elasticity for the job
   // number of (elastic) tasks in the job will be old task count X elasticity factor
@@ -473,6 +478,10 @@ public class JobConfig extends MapConfig {
    */
   public String getCoordinatorStreamFactory() {
     return get(COORDINATOR_STREAM_FACTORY, DEFAULT_COORDINATOR_STREAM_CONFIG_FACTORY);
+  }
+
+  public boolean getLiveDeploymentEnabled() {
+    return getBoolean(JOB_LIVE_DEPLOYMENT_ENABLED, JOB_LIVE_DEPLOYMENT_ENABLED_DEFAULT);
   }
 
   public boolean getApplicationMasterHighAvailabilityEnabled() {
