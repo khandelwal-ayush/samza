@@ -269,11 +269,6 @@ public class YarnClusterResourceManager extends ClusterResourceManager implement
     if (client.status(oldApp).get() == ApplicationStatus.Running) {
       throw new SamzaException("Old app did not move to KILLED state before timeout.");
     }
-
-    /* Old app is killed, its AM and containers are gone.
-     * Now continue with container creation of new app.
-     */
-    service.writeServerUrlToCoordinatorStream();
   }
 
   /**
@@ -299,6 +294,11 @@ public class YarnClusterResourceManager extends ClusterResourceManager implement
     if (new JobConfig(config).getLiveDeploymentEnabled()) {
       log.info("Live deployment is enabled.");
       executeLiveDeployment();
+
+      /* Old app is killed if it existed, its AM and containers are gone.
+       * Now continue with container creation of new app.
+       */
+      service.writeServerUrlToCoordinatorStream();
     }
 
     metrics.setContainersFromPreviousAttempts(previousAttemptsContainers.size());
