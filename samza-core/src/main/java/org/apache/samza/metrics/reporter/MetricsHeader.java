@@ -36,13 +36,14 @@ public class MetricsHeader {
   private static final String HOST = "host";
   private static final String TIME = "time";
   private static final String RESET_TIME = "reset-time";
-
+  private static final String METRICS_SCHEMA_VERSION = "metrics-schema-version";
+  private static final String PORTABLE_JOB_DATA = "portable-job-data";
   private final String jobName;
   private final String jobId;
   private final String containerName;
   private final String execEnvironmentContainerId;
   /**
-   * This is optional for backwards compatibility. It was added added after the initial version of this class.
+   * This is optional for backwards compatibility. It was added after the initial version of this class.
    */
   private final Optional<String> samzaEpochId;
   private final String source;
@@ -51,6 +52,8 @@ public class MetricsHeader {
   private final String host;
   private final long time;
   private final long resetTime;
+  private final Optional<Short> schemaVersion;
+  private final Optional<PortableJobFields> portableJobData;
 
   public MetricsHeader(String jobName, String jobId, String containerName, String execEnvironmentContainerId,
       String source, String version, String samzaVersion, String host, long time, long resetTime) {
@@ -61,6 +64,13 @@ public class MetricsHeader {
   public MetricsHeader(String jobName, String jobId, String containerName, String execEnvironmentContainerId,
       Optional<String> samzaEpochId, String source, String version, String samzaVersion, String host, long time,
       long resetTime) {
+    this(jobName, jobId, containerName, execEnvironmentContainerId, samzaEpochId, source, version, samzaVersion,
+        host, time, resetTime, Optional.empty(), Optional.empty());
+  }
+
+  public MetricsHeader(String jobName, String jobId, String containerName, String execEnvironmentContainerId,
+      Optional<String> samzaEpochId, String source, String version, String samzaVersion, String host, long time,
+      long resetTime, Optional<Short> schemaVersion, Optional<PortableJobFields> portableJobData) {
     this.jobName = jobName;
     this.jobId = jobId;
     this.containerName = containerName;
@@ -72,6 +82,8 @@ public class MetricsHeader {
     this.host = host;
     this.time = time;
     this.resetTime = resetTime;
+    this.schemaVersion = schemaVersion;
+    this.portableJobData = portableJobData;
   }
 
   public Map<String, Object> getAsMap() {
@@ -87,6 +99,8 @@ public class MetricsHeader {
     map.put(HOST, host);
     map.put(TIME, time);
     map.put(RESET_TIME, resetTime);
+    this.schemaVersion.ifPresent(schemaVersion -> map.put(METRICS_SCHEMA_VERSION, schemaVersion));
+    this.portableJobData.ifPresent(portableJobFields -> map.put(PORTABLE_JOB_DATA, portableJobFields));
     return map;
   }
 
@@ -138,19 +152,32 @@ public class MetricsHeader {
     return resetTime;
   }
 
+  public Optional<Short> getSchemaVersion() { return schemaVersion; }
+
+  public Optional<PortableJobFields> getPortableJobData() { return portableJobData; }
+
   public static MetricsHeader fromMap(Map<String, Object> map) {
-    return new MetricsHeader(map.get(JOB_NAME).toString(),
-        map.get(JOB_ID).toString(),
-        map.get(CONTAINER_NAME).toString(),
-        map.get(EXEC_ENV_CONTAINER_ID).toString(),
+
+    Optional<PortableJobFields> portableJobFields = Optional.empty();
+    if (map.containsKey(PORTABLE_JOB_DATA)) {
+      portableJobFields = (Optional<PortableJobFields>) map.get(PORTABLE_JOB_DATA);
+    }
+
+    Optional<Short> schemaVersion = Optional.empty();
+    if (map.containsKey(METRICS_SCHEMA_VERSION)) {
+      schemaVersion = (Optional<Short>) map.get(METRICS_SCHEMA_VERSION);
+    }
+
+    return new MetricsHeader(map.get(JOB_NAME).toString(), map.get(JOB_ID).toString(),
+        map.get(CONTAINER_NAME).toString(), map.get(EXEC_ENV_CONTAINER_ID).toString(),
         // need to check existence for backwards compatibility with initial version of this class
-        Optional.ofNullable(map.get(SAMZA_EPOCH_ID)).map(Object::toString),
-        map.get(SOURCE).toString(),
-        map.get(VERSION).toString(),
-        map.get(SAMZA_VERSION).toString(),
+        Optional.ofNullable(map.get(SAMZA_EPOCH_ID)).map(Object::toString), map.get(SOURCE).toString(),
+        map.get(VERSION).toString(), map.get(SAMZA_VERSION).toString(),
         map.get(HOST).toString(),
         ((Number) map.get(TIME)).longValue(),
-        ((Number) map.get(RESET_TIME)).longValue());
+        ((Number) map.get(RESET_TIME)).longValue(),
+        schemaVersion,
+        portableJobFields);
   }
 
   @Override
@@ -166,13 +193,14 @@ public class MetricsHeader {
         jobId, that.jobId) && Objects.equals(containerName, that.containerName) && Objects.equals(
         execEnvironmentContainerId, that.execEnvironmentContainerId) && Objects.equals(samzaEpochId,
         that.samzaEpochId) && Objects.equals(source, that.source) && Objects.equals(version, that.version)
-        && Objects.equals(samzaVersion, that.samzaVersion) && Objects.equals(host, that.host);
+        && Objects.equals(samzaVersion, that.samzaVersion) && Objects.equals(host, that.host)
+        && Objects.equals(portableJobData, that.portableJobData);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(jobName, jobId, containerName, execEnvironmentContainerId, samzaEpochId, source,
-        version, samzaVersion, host, time, resetTime);
+        version, samzaVersion, host, time, resetTime, portableJobData);
   }
 
   @Override
@@ -181,6 +209,44 @@ public class MetricsHeader {
         + containerName + '\'' + ", execEnvironmentContainerId='" + execEnvironmentContainerId + '\''
         + ", samzaEpochId=" + samzaEpochId + ", source='" + source + '\'' + ", version='" + version + '\''
         + ", samzaVersion='" + samzaVersion + '\'' + ", host='" + host + '\'' + ", time=" + time + ", resetTime="
-        + resetTime + '}';
+        + resetTime + ", portableJobData=" + portableJobData + '}';
+  }
+
+  public static class PortableJobFields {
+
+    // Whether the job is using compute isolation
+    public final boolean isPortableJob;
+
+    // Can be set to worker or runner - for jobs using compute isolation
+    public final ProcessType processType;
+
+    // Can be used to identify a worker if there are multiple workers - for jobs using compute isolation
+    public final String portableJobProcessId;
+
+    // Enum to identify the type of process for jobs using compute isolation (portable mode).
+    public enum ProcessType {
+
+      // The runner process runs framework code. There can only be one runner per container.
+      Runner,
+
+      // Worker process runs user code. There can be one or more of workers in a single container.
+      Worker
+    }
+
+    public PortableJobFields(boolean isPortableJob, ProcessType processType,
+        String portableJobProcessId) {
+      this.isPortableJob = isPortableJob;
+      this.processType = processType;
+      this.portableJobProcessId = portableJobProcessId;
+    }
+
+    @Override
+    public String toString() {
+      return "PortableJobFields{"
+          + ", isPortableJob='" + isPortableJob + '\''
+          + ", processType='" + processType + '\''
+          + ", portableJobProcessId='" + portableJobProcessId + '\''
+          + '}';
+    }
   }
 }
