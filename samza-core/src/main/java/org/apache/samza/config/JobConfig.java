@@ -158,6 +158,7 @@ public class JobConfig extends MapConfig {
   public static final String JOB_AUTOSIZING_CONTAINER_MAX_HEAP_MB = JOB_AUTOSIZING_CONFIG_PREFIX + "container.maxheap.mb";
   public static final String JOB_AUTOSIZING_CONTAINER_MEMORY_MB = JOB_AUTOSIZING_CONFIG_PREFIX + "container.memory.mb";
   public static final String JOB_AUTOSIZING_CONTAINER_MAX_CORES = JOB_AUTOSIZING_CONFIG_PREFIX + "container.cpu.cores";
+  public static final String JOB_AUTOSIZING_WORKER_MAX_HEAP_MB = JOB_AUTOSIZING_CONFIG_PREFIX + "worker.maxheap.mb";
 
   public static final String COORDINATOR_STREAM_FACTORY = "job.coordinatorstream.config.factory";
   public static final String DEFAULT_COORDINATOR_STREAM_CONFIG_FACTORY = "org.apache.samza.util.DefaultCoordinatorStreamConfigFactory";
@@ -200,6 +201,10 @@ public class JobConfig extends MapConfig {
   // number of (elastic) tasks in the job will be old task count X elasticity factor
   public static final String JOB_ELASTICITY_FACTOR = "job.elasticity.factor";
   public static final int DEFAULT_JOB_ELASTICITY_FACTOR = 1;
+
+  public static final String JOB_OPERATOR_FRAMEWORK_EXECUTOR_ENABLED = "job.operator.framework.executor.enabled";
+
+  public static final boolean DEFAULT_JOB_OPERATOR_FRAMEWORK_EXECUTOR_ENABLED = false;
 
   public JobConfig(Config config) {
     super(config);
@@ -535,5 +540,9 @@ public class JobConfig extends MapConfig {
 
   public String getCoordinatorExecuteCommand() {
     return get(COORDINATOR_EXECUTE_COMMAND, DEFAULT_COORDINATOR_EXECUTE_COMMAND);
+  }
+
+  public boolean getOperatorFrameworkExecutorEnabled() {
+    return getBoolean(JOB_OPERATOR_FRAMEWORK_EXECUTOR_ENABLED, DEFAULT_JOB_OPERATOR_FRAMEWORK_EXECUTOR_ENABLED);
   }
 }
