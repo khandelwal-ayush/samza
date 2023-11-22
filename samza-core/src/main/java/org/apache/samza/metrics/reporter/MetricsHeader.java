@@ -37,7 +37,7 @@ public class MetricsHeader {
   private static final String TIME = "time";
   private static final String RESET_TIME = "reset-time";
   private static final String METRICS_SCHEMA_VERSION = "metrics-schema-version";
-  private static final String PORTABLE_JOB_DATA = "portable-job-data";
+  private static final String PORTABLE_JOB_FIELDS = "portable-job-fields";
   private final String jobName;
   private final String jobId;
   private final String containerName;
@@ -53,7 +53,7 @@ public class MetricsHeader {
   private final long time;
   private final long resetTime;
   private final Optional<Short> schemaVersion;
-  private final Optional<PortableJobFields> portableJobData;
+  private final Optional<PortableJobFields> portableJobFields;
 
   public MetricsHeader(String jobName, String jobId, String containerName, String execEnvironmentContainerId,
       String source, String version, String samzaVersion, String host, long time, long resetTime) {
@@ -70,7 +70,7 @@ public class MetricsHeader {
 
   public MetricsHeader(String jobName, String jobId, String containerName, String execEnvironmentContainerId,
       Optional<String> samzaEpochId, String source, String version, String samzaVersion, String host, long time,
-      long resetTime, Optional<Short> schemaVersion, Optional<PortableJobFields> portableJobData) {
+      long resetTime, Optional<Short> schemaVersion, Optional<PortableJobFields> portableJobFields) {
     this.jobName = jobName;
     this.jobId = jobId;
     this.containerName = containerName;
@@ -83,7 +83,7 @@ public class MetricsHeader {
     this.time = time;
     this.resetTime = resetTime;
     this.schemaVersion = schemaVersion;
-    this.portableJobData = portableJobData;
+    this.portableJobFields = portableJobFields;
   }
 
   public Map<String, Object> getAsMap() {
@@ -100,7 +100,7 @@ public class MetricsHeader {
     map.put(TIME, time);
     map.put(RESET_TIME, resetTime);
     this.schemaVersion.ifPresent(schemaVersion -> map.put(METRICS_SCHEMA_VERSION, schemaVersion));
-    this.portableJobData.ifPresent(portableJobFields -> map.put(PORTABLE_JOB_DATA, portableJobFields));
+    this.portableJobFields.ifPresent(portableJobFields -> map.put(PORTABLE_JOB_FIELDS, portableJobFields));
     return map;
   }
 
@@ -154,13 +154,13 @@ public class MetricsHeader {
 
   public Optional<Short> getSchemaVersion() { return schemaVersion; }
 
-  public Optional<PortableJobFields> getPortableJobData() { return portableJobData; }
+  public Optional<PortableJobFields> getPortableJobFields() { return portableJobFields; }
 
   public static MetricsHeader fromMap(Map<String, Object> map) {
 
     Optional<PortableJobFields> portableJobFields = Optional.empty();
-    if (map.containsKey(PORTABLE_JOB_DATA)) {
-      portableJobFields = (Optional<PortableJobFields>) map.get(PORTABLE_JOB_DATA);
+    if (map.containsKey(PORTABLE_JOB_FIELDS)) {
+      portableJobFields = (Optional<PortableJobFields>) map.get(PORTABLE_JOB_FIELDS);
     }
 
     Optional<Short> schemaVersion = Optional.empty();
@@ -194,13 +194,14 @@ public class MetricsHeader {
         execEnvironmentContainerId, that.execEnvironmentContainerId) && Objects.equals(samzaEpochId,
         that.samzaEpochId) && Objects.equals(source, that.source) && Objects.equals(version, that.version)
         && Objects.equals(samzaVersion, that.samzaVersion) && Objects.equals(host, that.host)
-        && Objects.equals(portableJobData, that.portableJobData);
+        && Objects.equals(schemaVersion, that.schemaVersion)
+        && Objects.equals(portableJobFields, that.portableJobFields);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(jobName, jobId, containerName, execEnvironmentContainerId, samzaEpochId, source,
-        version, samzaVersion, host, time, resetTime, portableJobData);
+        version, samzaVersion, host, time, resetTime, schemaVersion, portableJobFields);
   }
 
   @Override
@@ -209,7 +210,7 @@ public class MetricsHeader {
         + containerName + '\'' + ", execEnvironmentContainerId='" + execEnvironmentContainerId + '\''
         + ", samzaEpochId=" + samzaEpochId + ", source='" + source + '\'' + ", version='" + version + '\''
         + ", samzaVersion='" + samzaVersion + '\'' + ", host='" + host + '\'' + ", time=" + time + ", resetTime="
-        + resetTime + ", portableJobData=" + portableJobData + '}';
+        + resetTime + ", schemaVersion=" + schemaVersion + ", portableJobFields=" + portableJobFields + '}';
   }
 
   public static class PortableJobFields {

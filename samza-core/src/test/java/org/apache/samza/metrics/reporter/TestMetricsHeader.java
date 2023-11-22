@@ -66,7 +66,7 @@ public class TestMetricsHeader {
     expected.put("time", TIME);
     expected.put("reset-time", RESET_TIME);
     expected.put("metrics-schema-version", schemaVersion);
-    expected.put("portable-job-data", portableJobFields);
+    expected.put("portable-job-fields", portableJobFields);
     assertEquals(expected, metricsHeader.getAsMap());
 
     // test with empty samza epoch id
@@ -82,7 +82,7 @@ public class TestMetricsHeader {
             SAMZA_VERSION, HOST, TIME, RESET_TIME, Optional.empty(), Optional.empty());
 
     expected.remove("metrics-schema-version");
-    expected.remove("portable-job-data");
+    expected.remove("portable-job-fields");
     assertEquals(expected, metricsHeader.getAsMap());
   }
 
@@ -106,7 +106,7 @@ public class TestMetricsHeader {
     map.put("time", TIME);
     map.put("reset-time", RESET_TIME);
     map.put("metrics-schema-version", schemaVersion);
-    map.put("portable-job-data", portableJobFields);
+    map.put("portable-job-fields", portableJobFields);
 
     MetricsHeader expected =
         new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.of(SAMZA_EPOCH_ID),
@@ -125,7 +125,7 @@ public class TestMetricsHeader {
 
     // test with missing portable job data
     map.remove("metrics-schema-version");
-    map.remove("portable-job-data");
+    map.remove("portable-job-fields");
     expected =
         new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.empty(), SOURCE, VERSION,
             SAMZA_VERSION, HOST, TIME, RESET_TIME, Optional.empty(), Optional.empty());
