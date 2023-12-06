@@ -19,9 +19,27 @@
 # This script is invoked using Java's -XX:OnOutOfMemoryError flag from run-class.sh.
 # It copies a job's .metadata files to a samza-admin accessible location on disk.
 # Samza-admin then reads it, emits an event to the job's diagnostic stream, and deletes the file.
+# Callers of the script can optionally specify the type of samza process using SAMZA_PROCESS_TYPE. The recognized
+# values for the process types are {CONTAINER, WORKER}
+# If not specified, the script assumes the process to be a samza container.
 
+CONTAINER="CONTAINER"
+WORKER="WORKER"
+CONTAINER_OOM_DIRECTORY=/tmp/samza-container-OOM/
+WORKER_OOM_DIRECTORY=/tmp/samza-worker-OOM/
 CONTAINER_METADATA_DIR=$1 # path of the container's metadata file (same as log-dir)
-CONTAINER_METADATA_FILEPATH_FOR_OOM=/tmp/samza-container-OOM/ # path to which the metadata needs to be copied in case of OOM
+CONTAINER_METADATA_FILEPATH_FOR_OOM=$CONTAINER_OOM_DIRECTORY # default to container OOM path to which the metadata needs to be copied in case of OOM
+
+# Default the process type to CONTAINER if its undefined or if it is invalid
+if [[ -z "$SAMZA_PROCESS_TYPE" || ( "$SAMZA_PROCESS_TYPE" != "$CONTAINER" && "$SAMZA_PROCESS_TYPE" != "$WORKER" ) ]]; then
+  SAMZA_PROCESS_TYPE=$CONTAINER
+fi
+
+echo "Handling OOM signal for samza process type:" $SAMZA_PROCESS_TYPE
+# Override the destination directory if the samza process is a worker
+if [[ "$SAMZA_PROCESS_TYPE" == "$WORKER" ]]; then
+  CONTAINER_METADATA_FILEPATH_FOR_OOM=/tmp/samza-worker-OOM/
+fi
 
 # Create directory if not exists
 if [[ ! -d "$CONTAINER_METADATA_FILEPATH_FOR_OOM" ]]; then
