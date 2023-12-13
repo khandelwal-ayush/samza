@@ -60,6 +60,7 @@ public class DiagnosticsStreamMessage {
   private static final String CONTAINER_NUM_CORES_METRIC_NAME = "containerNumCores";
   private static final String CONTAINER_NUM_PERSISTENT_STORES_METRIC_NAME = "numPersistentStores";
   private static final String CONTAINER_MAX_CONFIGURED_HEAP_METRIC_NAME = "maxHeap";
+  private static final String CONTAINER_WORKER_CONFIGURED_HEAP_METRIC_NAME = "workerHeap";
   private static final String CONTAINER_THREAD_POOL_SIZE_METRIC_NAME = "containerThreadPoolSize";
   private static final String CONTAINER_MODELS_METRIC_NAME = "containerModels";
   private static final String AUTOSIZING_ENABLED_METRIC_NAME = "autosizingEnabled";
@@ -71,8 +72,17 @@ public class DiagnosticsStreamMessage {
   public DiagnosticsStreamMessage(String jobName, String jobId, String containerName, String executionEnvContainerId,
       Optional<String> samzaEpochId, String taskClassVersion, String samzaVersion, String hostname,
       long timestamp, long resetTimestamp) {
+    this(jobName, jobId, containerName, executionEnvContainerId, samzaEpochId, taskClassVersion, samzaVersion, hostname,
+        timestamp, resetTimestamp, Optional.empty(), Optional.empty());
+  }
+
+  public DiagnosticsStreamMessage(String jobName, String jobId, String containerName, String executionEnvContainerId,
+      Optional<String> samzaEpochId, String taskClassVersion, String samzaVersion, String hostname,
+      long timestamp, long resetTimestamp,
+      Optional<Short> schemaVersion, Optional<MetricsHeader.PortableJobFields> portableJobFields) {
     this.metricsHeader = new MetricsHeader(jobName, jobId, containerName, executionEnvContainerId, samzaEpochId,
-        DiagnosticsManager.class.getName(), taskClassVersion, samzaVersion, hostname, timestamp, resetTimestamp);
+        DiagnosticsManager.class.getName(), taskClassVersion, samzaVersion, hostname, timestamp, resetTimestamp,
+        schemaVersion, portableJobFields);
     this.metricsMessage = new HashMap<>();
   }
 
@@ -107,6 +117,15 @@ public class DiagnosticsStreamMessage {
    */
   public void addMaxHeapSize(Long maxHeapSize) {
     addToMetricsMessage(GROUP_NAME_FOR_DIAGNOSTICS_MANAGER, CONTAINER_MAX_CONFIGURED_HEAP_METRIC_NAME, maxHeapSize);
+  }
+
+  /**
+   * Add the configured max heap size in bytes.
+   * @param workerHeapSize the parameter value.
+   */
+  public void addWorkerHeapSize(Long workerHeapSize) {
+    addToMetricsMessage(
+        GROUP_NAME_FOR_DIAGNOSTICS_MANAGER, CONTAINER_WORKER_CONFIGURED_HEAP_METRIC_NAME, workerHeapSize);
   }
 
   /**
@@ -225,6 +244,11 @@ public class DiagnosticsStreamMessage {
     return (Long) getFromMetricsMessage(GROUP_NAME_FOR_DIAGNOSTICS_MANAGER, CONTAINER_MAX_CONFIGURED_HEAP_METRIC_NAME);
   }
 
+  public Long getWorkerHeapSize() {
+    return (Long) getFromMetricsMessage(
+        GROUP_NAME_FOR_DIAGNOSTICS_MANAGER, CONTAINER_WORKER_CONFIGURED_HEAP_METRIC_NAME);
+  }
+
   public Integer getContainerThreadPoolSize() {
     return (Integer) getFromMetricsMessage(GROUP_NAME_FOR_DIAGNOSTICS_MANAGER, CONTAINER_THREAD_POOL_SIZE_METRIC_NAME);
   }
@@ -254,7 +278,8 @@ public class DiagnosticsStreamMessage {
             metricsSnapshot.getHeader().getContainerName(), metricsSnapshot.getHeader().getExecEnvironmentContainerId(),
             metricsSnapshot.getHeader().getSamzaEpochId(), metricsSnapshot.getHeader().getVersion(),
             metricsSnapshot.getHeader().getSamzaVersion(), metricsSnapshot.getHeader().getHost(),
-            metricsSnapshot.getHeader().getTime(), metricsSnapshot.getHeader().getResetTime());
+            metricsSnapshot.getHeader().getTime(), metricsSnapshot.getHeader().getResetTime(),
+            metricsSnapshot.getHeader().getSchemaVersion(), metricsSnapshot.getHeader().getPortableJobFields());
 
     Map<String, Map<String, Object>> metricsMap = metricsSnapshot.getMetrics().getAsMap();
     Map<String, Object> diagnosticsManagerGroupMap = metricsMap.get(GROUP_NAME_FOR_DIAGNOSTICS_MANAGER);
@@ -272,6 +297,12 @@ public class DiagnosticsStreamMessage {
       diagnosticsStreamMessage.addProcessorStopEvents((List<ProcessorStopEvent>) diagnosticsManagerGroupMap.get(STOP_EVENT_LIST_METRIC_NAME));
       diagnosticsStreamMessage.addAutosizingEnabled((Boolean) diagnosticsManagerGroupMap.get(AUTOSIZING_ENABLED_METRIC_NAME));
       diagnosticsStreamMessage.addConfig(new MapConfig((Map<String, String>) diagnosticsManagerGroupMap.get(CONFIG_METRIC_NAME)));
+
+      // Add worker heap size for portable job
+      if (metricsSnapshot.getHeader().getPortableJobFields().isPresent()
+        && metricsSnapshot.getHeader().getPortableJobFields().get().isPortableJob) {
+        diagnosticsStreamMessage.addWorkerHeapSize((Long) diagnosticsManagerGroupMap.get(CONTAINER_WORKER_CONFIGURED_HEAP_METRIC_NAME));
+      }
     }
 
     if (containerMetricsGroupMap != null && containerMetricsGroupMap.containsKey(EXCEPTION_LIST_METRIC_NAME)) {

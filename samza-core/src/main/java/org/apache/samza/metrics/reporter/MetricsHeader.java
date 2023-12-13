@@ -25,6 +25,11 @@ import java.util.Optional;
 
 
 public class MetricsHeader {
+  // Schema version for the metrics header.
+  public static final short METRICS_SCHEMA_VERSION = 1;
+  // Process ID for Runner process. This is used for portable jobs.
+  public static final String PORTABLE_JOB_RUNNER_PROCESS_ID = "Runner";
+
   private static final String JOB_NAME = "job-name";
   private static final String JOB_ID = "job-id";
   private static final String CONTAINER_NAME = "container-name";
@@ -36,7 +41,7 @@ public class MetricsHeader {
   private static final String HOST = "host";
   private static final String TIME = "time";
   private static final String RESET_TIME = "reset-time";
-  private static final String METRICS_SCHEMA_VERSION = "metrics-schema-version";
+  private static final String METRICS_SCHEMA_VERSION_LABEL = "metrics-schema-version";
   private static final String PORTABLE_JOB_FIELDS = "portable-job-fields";
   private final String jobName;
   private final String jobId;
@@ -99,7 +104,7 @@ public class MetricsHeader {
     map.put(HOST, host);
     map.put(TIME, time);
     map.put(RESET_TIME, resetTime);
-    this.schemaVersion.ifPresent(schemaVersion -> map.put(METRICS_SCHEMA_VERSION, schemaVersion));
+    this.schemaVersion.ifPresent(schemaVersion -> map.put(METRICS_SCHEMA_VERSION_LABEL, schemaVersion));
     this.portableJobFields.ifPresent(portableJobFields -> map.put(PORTABLE_JOB_FIELDS, portableJobFields));
     return map;
   }
@@ -160,12 +165,12 @@ public class MetricsHeader {
 
     Optional<PortableJobFields> portableJobFields = Optional.empty();
     if (map.containsKey(PORTABLE_JOB_FIELDS)) {
-      portableJobFields = (Optional<PortableJobFields>) map.get(PORTABLE_JOB_FIELDS);
+      portableJobFields = Optional.of((PortableJobFields) map.get(PORTABLE_JOB_FIELDS));
     }
 
     Optional<Short> schemaVersion = Optional.empty();
-    if (map.containsKey(METRICS_SCHEMA_VERSION)) {
-      schemaVersion = (Optional<Short>) map.get(METRICS_SCHEMA_VERSION);
+    if (map.containsKey(METRICS_SCHEMA_VERSION_LABEL)) {
+      schemaVersion = Optional.of((Short) map.get(METRICS_SCHEMA_VERSION_LABEL));
     }
 
     return new MetricsHeader(map.get(JOB_NAME).toString(), map.get(JOB_ID).toString(),
@@ -234,11 +239,20 @@ public class MetricsHeader {
       Worker
     }
 
+    private PortableJobFields() {
+      this(false, ProcessType.Runner, PORTABLE_JOB_RUNNER_PROCESS_ID);
+    }
+
     public PortableJobFields(boolean isPortableJob, ProcessType processType,
         String portableJobProcessId) {
       this.isPortableJob = isPortableJob;
       this.processType = processType;
       this.portableJobProcessId = portableJobProcessId;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(isPortableJob, processType, portableJobProcessId);
     }
 
     @Override
@@ -248,6 +262,20 @@ public class MetricsHeader {
           + ", processType='" + processType + '\''
           + ", portableJobProcessId='" + portableJobProcessId + '\''
           + '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PortableJobFields that = (PortableJobFields) o;
+      return this.isPortableJob == that.isPortableJob
+          && this.processType == that.processType
+          && Objects.equals(this.portableJobProcessId, that.portableJobProcessId);
     }
   }
 }

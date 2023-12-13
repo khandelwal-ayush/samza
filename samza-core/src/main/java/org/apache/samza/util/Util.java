@@ -26,6 +26,8 @@ import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import com.google.common.collect.Lists;
 import org.apache.samza.SamzaException;
@@ -49,6 +51,41 @@ public class Util {
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")
         .replace("`", "\\`");
+  }
+
+  /**
+   * Get the max heap size in bytes from the java opts.
+   * @param opts the java opts
+   * @return the max heap size in bytes
+   */
+  public static long getMaxHeapSizeBytes(String opts) {
+    long heapSizeInBytes = 0L;
+    String[] options = opts.split("\\s");
+
+    for (String option : options) {
+      option = option.trim();
+      Pattern p = Pattern.compile("-Xmx(\\d+)(\\p{Alpha}*)");
+      Matcher m = p.matcher(option);
+      if (m.find()) {
+        heapSizeInBytes = Long.valueOf(m.group(1));
+        String units = m.group(2).toLowerCase();
+        switch (units) {
+          case "g":
+            heapSizeInBytes *= 1024;
+          case "m":
+            heapSizeInBytes *= 1024;
+          case "k":
+            heapSizeInBytes *= 1024;
+          case "":
+            break;
+          default:
+            throw new SamzaException("Unknown java max heap size setting: " + option);
+        }
+        break;
+      }
+    }
+
+    return heapSizeInBytes;
   }
 
   public static String getSamzaVersion() {
