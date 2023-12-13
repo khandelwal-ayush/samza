@@ -205,6 +205,15 @@ public class YarnClusterResourceManager extends ClusterResourceManager implement
 
   }
 
+  private static boolean isJobInActiveState(ApplicationStatus status) {
+    log.info("Application state: " + status);
+    if (status == ApplicationStatus.Running || status == ApplicationStatus.New) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   /* Enable live deployment which reduces job down-time by spawning a new AM while
    * old job with its AM and containers is still live and working. In this case,
    * RM should return two apps while new AM is being spawned up.
@@ -242,21 +251,21 @@ public class YarnClusterResourceManager extends ClusterResourceManager implement
       throw new SamzaException("New app is in RUNNING state, this should not happen since AM is still being created.");
     }
 
-    /* Kill old app */
-    if (client.status(oldApp).get() == ApplicationStatus.Running) {
+    /* Kill old app if it is in a non-terminal state */
+    if (isJobInActiveState(client.status(oldApp).get())) {
       try {
-        log.info("Old app is running, kill it.");
+        log.info("Old app is active, kill it.");
         client.kill(oldApp);
       } catch (Exception e) {
         throw new SamzaException("Error in killing old app.", e);
       }
     } else {
-      throw new SamzaException("Old app should be running, but it has status - " + client.status(oldApp).get());
+      throw new SamzaException("Old app should be active, but it has status - " + client.status(oldApp).get());
     }
 
     /* We killed Old app, wait for it to move to KILLED state till timeout. */
     long startTime = System.currentTimeMillis();
-    while (client.status(oldApp).get() == ApplicationStatus.Running
+    while (isJobInActiveState(client.status(oldApp).get())
             && (System.currentTimeMillis() - startTime) < LIVE_DEPLOYMENT_KILL_WAITTIME_FOR_OLD_AM_IN_MS) {
       try {
         java.lang.Thread.sleep(2000);
@@ -266,7 +275,7 @@ public class YarnClusterResourceManager extends ClusterResourceManager implement
       }
     }
 
-    if (client.status(oldApp).get() == ApplicationStatus.Running) {
+    if (isJobInActiveState(client.status(oldApp).get())) {
       throw new SamzaException("Old app did not move to KILLED state before timeout.");
     }
   }
