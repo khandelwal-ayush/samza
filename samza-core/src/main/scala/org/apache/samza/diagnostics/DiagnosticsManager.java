@@ -30,10 +30,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import lombok.Getter;
 import org.apache.samza.config.Config;
 import org.apache.samza.job.model.ContainerModel;
-import org.apache.samza.metrics.reporter.MetricsHeader;
 import org.apache.samza.serializers.MetricsSnapshotSerdeV2;
 import org.apache.samza.system.OutgoingMessageEnvelope;
 import org.apache.samza.system.SystemProducer;
@@ -51,7 +49,6 @@ import org.slf4j.LoggerFactory;
  */
 public class DiagnosticsManager {
   private static final Logger LOG = LoggerFactory.getLogger(DiagnosticsManager.class);
-
   private static final Duration DEFAULT_PUBLISH_PERIOD = Duration.ofSeconds(60);
   // Period size for pushing data to the diagnostic stream
 
@@ -78,11 +75,6 @@ public class DiagnosticsManager {
   private final boolean autosizingEnabled;
   private final Config config;
   private final Clock clock;
-
-  // Portable-job related params
-  private final boolean isPortableJob;
-  private final long portableWorkerHeapBytes;
-
   private boolean jobParamsEmitted = false;
 
   private final SystemProducer systemProducer; // SystemProducer for writing diagnostics data
@@ -111,16 +103,14 @@ public class DiagnosticsManager {
       SystemProducer systemProducer,
       Duration terminationDuration,
       boolean autosizingEnabled,
-      Config config,
-      boolean isPortableJob,
-      long portableWorkerHeapBytes) {
+      Config config) {
 
     this(jobName, jobId, containerModels, containerMemoryMb, containerNumCores, numPersistentStores, maxHeapSizeBytes,
         containerThreadPoolSize, containerId, executionEnvContainerId, samzaEpochId, taskClassVersion,
         samzaVersion, hostname, diagnosticSystemStream, systemProducer, terminationDuration,
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat(PUBLISH_THREAD_NAME).setDaemon(true).build()), autosizingEnabled,
-        config, SystemClock.instance(), isPortableJob, portableWorkerHeapBytes);
+        config, SystemClock.instance());
   }
 
   @VisibleForTesting
@@ -144,9 +134,7 @@ public class DiagnosticsManager {
       ScheduledExecutorService executorService,
       boolean autosizingEnabled,
       Config config,
-      Clock clock,
-      boolean isPortableJob,
-      long portableWorkerHeapBytes) {
+      Clock clock) {
     this.jobName = jobName;
     this.jobId = jobId;
     this.containerModels = containerModels;
@@ -171,8 +159,6 @@ public class DiagnosticsManager {
     this.autosizingEnabled = autosizingEnabled;
     this.config = config;
     this.clock = clock;
-    this.isPortableJob = isPortableJob;
-    this.portableWorkerHeapBytes = portableWorkerHeapBytes;
 
     this.resetTime = Instant.ofEpochMilli(this.clock.currentTimeMillis());
     this.systemProducer.register(getClass().getSimpleName());
@@ -228,17 +214,10 @@ public class DiagnosticsManager {
     @Override
     public void run() {
       try {
-        MetricsHeader.PortableJobFields portableJobFields = new MetricsHeader.PortableJobFields(
-            isPortableJob,
-            MetricsHeader.PortableJobFields.ProcessType.Runner,
-            MetricsHeader.PORTABLE_JOB_RUNNER_PROCESS_ID);
-
         DiagnosticsStreamMessage diagnosticsStreamMessage =
             new DiagnosticsStreamMessage(jobName, jobId, "samza-container-" + containerId, executionEnvContainerId,
                 Optional.of(samzaEpochId), taskClassVersion, samzaVersion, hostname,
-                clock.currentTimeMillis(), resetTime.toEpochMilli(),
-                Optional.of(MetricsHeader.METRICS_SCHEMA_VERSION),
-                Optional.of(portableJobFields));
+                clock.currentTimeMillis(), resetTime.toEpochMilli());
 
         // Add job-related params to the message (if not already published)
         if (!jobParamsEmitted) {
@@ -283,4 +262,5 @@ public class DiagnosticsManager {
       }
     }
   }
+
 }

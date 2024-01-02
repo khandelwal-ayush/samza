@@ -115,7 +115,6 @@ public class JobConfig extends MapConfig {
 
   public static final String COORDINATOR_EXECUTE_COMMAND = "job.coordinator.execute";
   static final String DEFAULT_COORDINATOR_EXECUTE_COMMAND = "bin/run-jc.sh";
-  public static final String PORTABLE_COORDINATOR_EXECUTE_COMMAND = "bin/run-portable-jc.sh";
 
   public static final String REGEX_RESOLVED_STREAMS = "job.config.rewriter.%s.regex";
   public static final String REGEX_RESOLVED_SYSTEM = "job.config.rewriter.%s.system";

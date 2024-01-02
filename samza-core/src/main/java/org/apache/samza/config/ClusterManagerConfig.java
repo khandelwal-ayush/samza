@@ -21,7 +21,6 @@
 package org.apache.samza.config;
 
 import java.time.Duration;
-import org.apache.samza.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +31,10 @@ import org.slf4j.LoggerFactory;
  * Later, we'll enforce the new configs.
  */
 public class ClusterManagerConfig extends MapConfig {
+
   private static final Logger log = LoggerFactory.getLogger(ClusterManagerConfig.class);
-  private static final int BYTES_PER_MB = 1024 * 1024;
+
+
   private static final String CLUSTER_MANAGER_FACTORY = "samza.cluster-manager.factory";
   private static final String CLUSTER_MANAGER_FACTORY_DEFAULT = "org.apache.samza.job.yarn.YarnResourceManagerFactory";
 
@@ -199,24 +200,6 @@ public class ClusterManagerConfig extends MapConfig {
     } else {
       return DEFAULT_CONTAINER_MEM;
     }
-  }
-
-  /**
-   * Return the heap size of worker process of portable jobs.
-   * If Auto-Sizing is turned on, then use the Autosizing config, else fall back to the worker opts.
-   * @return heap size of worker process of portable jobs.
-   */
-  public long getPortableWorkerHeapBytes() {
-    if (containsKey(JobConfig.JOB_AUTOSIZING_WORKER_MAX_HEAP_MB) && new JobConfig(this).getAutosizingEnabled()) {
-      return getLong(JobConfig.JOB_AUTOSIZING_WORKER_MAX_HEAP_MB) * BYTES_PER_MB;
-    } else {
-      Util.getMaxHeapSizeBytes(get(ShellCommandConfig.WORKER_JVM_OPTS, ""));
-    }
-
-    log.warn(
-        "Portable worker max heap size requested for a job which does not have auto-sizing enabled."
-            + " Returning 0.");
-    return 0;
   }
 
   public boolean getHostAffinityEnabled() {

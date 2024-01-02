@@ -131,24 +131,12 @@ public class DiagnosticsUtil {
           systemFactory.getProducer(diagnosticsSystemStream.getSystem(), config, new MetricsRegistryMap(),
               DiagnosticsUtil.class.getSimpleName());
 
-      long portableWorkerHeapSizeBytes = 0;
-      boolean isPortableJob =
-          jobConfig.getCoordinatorExecuteCommand().equals(JobConfig.PORTABLE_COORDINATOR_EXECUTE_COMMAND);
-
-      if (isPortableJob) {
-        portableWorkerHeapSizeBytes = clusterManagerConfig.getPortableWorkerHeapBytes();
-        log.info(
-            "Portable job detected. Setting isPortableJob to true in DiagnosticsManager. Worker Bytes = {}",
-            portableWorkerHeapSizeBytes);
-      }
-
       DiagnosticsManager diagnosticsManager =
           new DiagnosticsManager(jobName, jobId, jobModel.getContainers(), containerMemoryMb, containerNumCores,
               new StorageConfig(config).getNumPersistentStores(), maxHeapSizeBytes, containerThreadPoolSize,
               containerId, executionEnvContainerId.orElse(""), samzaEpochId.orElse(""), taskClassVersion,
               samzaVersion, hostName, diagnosticsSystemStream, systemProducer,
-              Duration.ofMillis(new TaskConfig(config).getShutdownMs()), jobConfig.getAutosizingEnabled(), config,
-              isPortableJob, portableWorkerHeapSizeBytes);
+              Duration.ofMillis(new TaskConfig(config).getShutdownMs()), jobConfig.getAutosizingEnabled(), config);
 
       diagnosticsManagerOptional = Optional.of(diagnosticsManager);
     }

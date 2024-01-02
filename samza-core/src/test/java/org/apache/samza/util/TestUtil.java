@@ -55,13 +55,6 @@ public class TestUtil {
     assertEquals(escaped, Util.envVarEscape(withSpecialCharacters));
   }
 
-  @Test
-  public void testGetMaxHeapSize() {
-    assertEquals(Util.getMaxHeapSizeBytes(""),0);
-    assertEquals(Util.getMaxHeapSizeBytes("-Xms100m"),0);
-    assertEquals(Util.getMaxHeapSizeBytes("-XXHEAPOUT -Xmx100m -Xms200m"),100*1024*1024);
-  }
-
   /**
    *  It's difficult to explicitly test having an actual version and using the fallback, due to the usage of methods of
    *  Class.
