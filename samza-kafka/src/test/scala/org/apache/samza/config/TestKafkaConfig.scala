@@ -112,8 +112,8 @@ class TestKafkaConfig {
     props.setProperty(JobConfig.JOB_NAME, "jobName")
 
     props.setProperty("stores.test1.changelog", "kafka.mychangelog1")
-    // Set the RocksDB TTL to be 14 days.
-    props.setProperty("stores.test1.rocksdb.ttl.ms", "1209600000")
+    // Set the RocksDB TTL to be 28 days.
+    props.setProperty("stores.test1.rocksdb.ttl.ms", "2419200000")
 
     val mapConfig = new MapConfig(props.asScala.asJava)
     val kafkaConfig = new KafkaConfig(mapConfig)
@@ -121,7 +121,7 @@ class TestKafkaConfig {
     assertEquals("compact,delete", kafkaProperties.getProperty("cleanup.policy"))
     assertEquals("536870912", kafkaProperties.getProperty("segment.bytes"))
     assertEquals("86400000", kafkaProperties.getProperty("delete.retention.ms"))
-    assertEquals(String.valueOf(TimeUnit.DAYS.toMillis(14)), kafkaProperties.getProperty("retention.ms"))
+    assertEquals(String.valueOf(TimeUnit.DAYS.toMillis(28)), kafkaProperties.getProperty("retention.ms"))
   }
 
   @Test
@@ -136,9 +136,9 @@ class TestKafkaConfig {
     val mapConfig = new MapConfig(props.asScala.asJava)
     val kafkaConfig = new KafkaConfig(mapConfig)
     val kafkaProperties = kafkaConfig.getChangelogKafkaProperties("test1")
-    // Linkedin specific change to have cleanup policy for topic as compact,delete and retention of 14 days.
+    // Linkedin specific change to have cleanup policy for topic as compact,delete and retention of 28 days.
     assertEquals("compact,delete", kafkaProperties.getProperty("cleanup.policy"))
-    assertEquals(String.valueOf(TimeUnit.DAYS.toMillis(14)), kafkaProperties.getProperty("retention.ms"))
+    assertEquals(String.valueOf(TimeUnit.DAYS.toMillis(28)), kafkaProperties.getProperty("retention.ms"))
     assertEquals("536870912", kafkaProperties.getProperty("segment.bytes"))
     assertEquals("86400000", kafkaProperties.getProperty("delete.retention.ms"))
     assertEquals("1000012", kafkaProperties.getProperty("max.message.bytes"))
@@ -163,13 +163,13 @@ class TestKafkaConfig {
     val mapConfig = new MapConfig(props.asScala.asJava)
     val kafkaConfig = new KafkaConfig(mapConfig)
     assertEquals(kafkaConfig.getChangelogKafkaProperties("test1").getProperty("cleanup.policy"), "delete")
-    // Linkedin specific change to have cleanup policy for topic as compact, delete and 14 days retention.
+    // Linkedin specific change to have cleanup policy for topic as compact, delete and 28 days retention.
     assertEquals(kafkaConfig.getChangelogKafkaProperties("test2").getProperty("cleanup.policy"), "compact,delete")
-    assertEquals(kafkaConfig.getChangelogKafkaProperties("test2").getProperty("retention.ms"), String.valueOf(TimeUnit.DAYS.toMillis(14)))
+    assertEquals(kafkaConfig.getChangelogKafkaProperties("test2").getProperty("retention.ms"), String.valueOf(TimeUnit.DAYS.toMillis(28)))
     assertEquals(kafkaConfig.getChangelogKafkaProperties("test2").getProperty("max.message.bytes"), "1024000")
-    // Linkedin specific change to have cleanup policy for topic as compact, delete and 14 days retention.
+    // Linkedin specific change to have cleanup policy for topic as compact, delete and 28 days retention.
     assertEquals(kafkaConfig.getChangelogKafkaProperties("test3").getProperty("cleanup.policy"), "compact,delete")
-    assertEquals(kafkaConfig.getChangelogKafkaProperties("test3").getProperty("retention.ms"), String.valueOf(TimeUnit.DAYS.toMillis(14)))
+    assertEquals(kafkaConfig.getChangelogKafkaProperties("test3").getProperty("retention.ms"), String.valueOf(TimeUnit.DAYS.toMillis(28)))
     val storeToChangelog = kafkaConfig.getKafkaChangelogEnabledStores()
     assertEquals("mychangelog1", storeToChangelog.getOrDefault("test1", ""))
     assertEquals("mychangelog2", storeToChangelog.getOrDefault("test2", ""))
@@ -198,16 +198,16 @@ class TestKafkaConfig {
     assertEquals(batchKafkaConfig.getChangelogKafkaProperties("test1").getProperty("cleanup.policy"), "delete")
     assertEquals(batchKafkaConfig.getChangelogKafkaProperties("test1").getProperty("delete.retention.ms"),
       String.valueOf(KafkaConfig.DEFAULT_RETENTION_MS_FOR_BATCH))
-    // Linkedin specific change to have cleanup policy for topic as compact, delete and 14 days retention.
+    // Linkedin specific change to have cleanup policy for topic as compact, delete and 28 days retention.
     assertEquals(batchKafkaConfig.getChangelogKafkaProperties("test2").getProperty("cleanup.policy"), "compact,delete")
     assertEquals(batchKafkaConfig.getChangelogKafkaProperties("test2").getProperty("delete.retention.ms"),
       String.valueOf(KafkaConfig.DEFAULT_RETENTION_MS_FOR_BATCH))
     assertEquals(batchKafkaConfig.getChangelogKafkaProperties("test2").getProperty("retention.ms"),
-      String.valueOf(TimeUnit.DAYS.toMillis(14)))
-    // Linkedin specific change to have cleanup policy for topic as compact, delete and 14 days retention.
+      String.valueOf(TimeUnit.DAYS.toMillis(28)))
+    // Linkedin specific change to have cleanup policy for topic as compact, delete and 28 days retention.
     assertEquals(batchKafkaConfig.getChangelogKafkaProperties("test3").getProperty("cleanup.policy"), "compact,delete")
     assertEquals(batchKafkaConfig.getChangelogKafkaProperties("test3").getProperty("retention.ms"),
-      String.valueOf(TimeUnit.DAYS.toMillis(14)))
+      String.valueOf(TimeUnit.DAYS.toMillis(28)))
     assertEquals(batchKafkaConfig.getChangelogKafkaProperties("test3").getProperty("max.message.bytes"),
       KafkaConfig.DEFAULT_LOG_COMPACT_TOPIC_MAX_MESSAGE_BYTES)
 

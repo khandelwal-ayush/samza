@@ -121,9 +121,9 @@ public class TestKafkaSystemAdminJava extends TestKafkaSystemAdmin {
     int partitionCount = 1;
     Map<String, String> map = new HashMap<>();
 
-    // Linkedin specific change to have cleanup policy for topic as compact, delete and 14 days retention.
+    // Linkedin specific change to have cleanup policy for topic as compact, delete and 28 days retention.
     map.put("cleanup.policy", "compact,delete");
-    map.put("retention.ms", String.valueOf(TimeUnit.DAYS.toMillis(14)));
+    map.put("retention.ms", String.valueOf(TimeUnit.DAYS.toMillis(28)));
     map.put("replication.factor", "3");
     map.put("segment.bytes", "536870912");
 
@@ -137,10 +137,10 @@ public class TestKafkaSystemAdminJava extends TestKafkaSystemAdmin {
     assertEquals(topicName, kafkaStreamSpec.getPhysicalName());
     assertEquals(partitionCount, kafkaStreamSpec.getPartitionCount());
     assertEquals(3, kafkaStreamSpec.getReplicationFactor());
-    // Linkedin specific change to have cleanup policy for topic as compact,delete and 14 days retention.
+    // Linkedin specific change to have cleanup policy for topic as compact,delete and 28 days retention.
     assertEquals("compact,delete", kafkaStreamSpec.getConfig().get("cleanup.policy"));
     assertEquals("536870912", kafkaStreamSpec.getConfig().get("segment.bytes"));
-    assertEquals(String.valueOf(TimeUnit.DAYS.toMillis(14)), kafkaStreamSpec.getConfig().get("retention.ms"));
+    assertEquals(String.valueOf(TimeUnit.DAYS.toMillis(28)), kafkaStreamSpec.getConfig().get("retention.ms"));
   }
 
   @Test
@@ -295,9 +295,9 @@ public class TestKafkaSystemAdminJava extends TestKafkaSystemAdmin {
       assertEquals(repFactor, ((KafkaStreamSpec) internalSpec).getReplicationFactor());
       assertEquals(partitions, internalSpec.getPartitionCount());
       assertEquals("139", ((KafkaStreamSpec) internalSpec).getProperties().getProperty("segment.bytes"));
-      // Linkedin specific change to have cleanup policy for topic as compact, delete and 14 days retention.
+      // Linkedin specific change to have cleanup policy for topic as compact, delete and 28 days retention.
       assertEquals("compact,delete", ((KafkaStreamSpec) internalSpec).getProperties().getProperty("cleanup.policy"));
-      assertEquals(String.valueOf(TimeUnit.DAYS.toMillis(14)), ((KafkaStreamSpec) internalSpec).getProperties().getProperty("retention.ms"));
+      assertEquals(String.valueOf(TimeUnit.DAYS.toMillis(28)), ((KafkaStreamSpec) internalSpec).getProperties().getProperty("retention.ms"));
 
       return internalSpec;
     }).when(admin).toKafkaSpec(Mockito.any());
