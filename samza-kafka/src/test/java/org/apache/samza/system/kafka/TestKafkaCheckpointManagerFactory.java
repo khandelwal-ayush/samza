@@ -38,10 +38,10 @@ public class TestKafkaCheckpointManagerFactory {
     Map<String, String> config = new HashMap<>();
     Properties properties = new KafkaConfig(new MapConfig(config)).getCheckpointTopicProperties();
 
-    // Linkedin specific change to have cleanup policy for topic as compact, delete and 28 days retention.
+    // Linkedin specific change to have cleanup policy for topic as compact, delete and 14 days retention.
     assertEquals(properties.getProperty("cleanup.policy"), "compact,delete");
     assertEquals(properties.getProperty("segment.bytes"), String.valueOf(KafkaConfig.DEFAULT_CHECKPOINT_SEGMENT_BYTES()));
-    assertEquals(properties.getProperty("retention.ms"), String.valueOf(TimeUnit.DAYS.toMillis(28)));
+    assertEquals(properties.getProperty("retention.ms"), String.valueOf(TimeUnit.DAYS.toMillis(14)));
 
     config.put(ApplicationConfig.APP_MODE, ApplicationConfig.ApplicationMode.BATCH.name());
     properties = new KafkaConfig(new MapConfig(config)).getCheckpointTopicProperties();

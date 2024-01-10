@@ -319,7 +319,7 @@ class KafkaConfig(config: Config) extends ScalaMapConfig(config) {
     // Adjust changelog topic setting.
     //  - If rocksdb ttl is set to -1, we keep property as compact.
     //  - If rocksdb tts is set to something else then we set cleanup policy as compact,delete with retention equal to ttl.
-    //  - If rocksdb ttl is not set then we set changelog topic cleanup policy as compact,delete with retention of 28 days.
+    //  - If rocksdb ttl is not set then we set changelog topic cleanup policy as compact,delete with retention of 14 days.
     //  - If changelog topic property is set specifically then we use that.
     Option(config.get("stores.%s.rocksdb.ttl.ms" format name)) match {
       case Some(rocksDbTtl) =>
@@ -327,17 +327,16 @@ class KafkaConfig(config: Config) extends ScalaMapConfig(config) {
           kafkaChangeLogProperties.setProperty("cleanup.policy", "compact")
           kafkaChangeLogProperties.setProperty("max.message.bytes", getChangelogStreamMaxMessageByte(name))
         } else if (!config.containsKey("stores.%s.changelog.kafka.cleanup.policy" format name)) {
-          // Linkedin specific change to have cleanup policy for topic as compact,delete and 28 days retention.
           kafkaChangeLogProperties.setProperty("cleanup.policy", "compact,delete")
           if (!config.containsKey("stores.%s.changelog.kafka.retention.ms" format name)) {
             kafkaChangeLogProperties.setProperty("retention.ms", String.valueOf(rocksDbTtl))
           }
         }
       case _ =>
-        // Linkedin specific change to have cleanup policy for topic as compact,delete and 28 days retention.
+        // Linkedin specific change to have cleanup policy for topic as compact,delete and 14 days retention.
         kafkaChangeLogProperties.setProperty("cleanup.policy", "compact,delete")
         kafkaChangeLogProperties.setProperty("max.message.bytes", getChangelogStreamMaxMessageByte(name))
-        kafkaChangeLogProperties.setProperty("retention.ms", String.valueOf(TimeUnit.DAYS.toMillis(28)))
+        kafkaChangeLogProperties.setProperty("retention.ms", String.valueOf(TimeUnit.DAYS.toMillis(14)))
     }
 
     val storageConfig = new StorageConfig(config)
@@ -368,10 +367,10 @@ class KafkaConfig(config: Config) extends ScalaMapConfig(config) {
     val properties = new Properties()
 
     if (isStreamMode) {
-      // Linkedin specific change to have cleanup policy for topic as compact,delete and 28 days retention.
+      // Linkedin specific change to have cleanup policy for topic as compact,delete and 14 days retention.
       properties.put("cleanup.policy", "compact,delete")
       properties.put("segment.bytes", String.valueOf(segmentBytes))
-      properties.put("retention.ms", String.valueOf(TimeUnit.DAYS.toMillis(28)))
+      properties.put("retention.ms", String.valueOf(TimeUnit.DAYS.toMillis(14)))
       properties.put("max.message.bytes", String.valueOf(maxMessageBytes))
     } else {
       properties.put("cleanup.policy", "compact,delete")
