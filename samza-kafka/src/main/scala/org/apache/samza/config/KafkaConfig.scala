@@ -367,10 +367,10 @@ class KafkaConfig(config: Config) extends ScalaMapConfig(config) {
     val properties = new Properties()
 
     if (isStreamMode) {
-      // Linkedin specific change to have cleanup policy for topic as compact,delete and 14 days retention.
+      // Linkedin specific change to have cleanup policy for topic as compact,delete and 28 days retention.
       properties.put("cleanup.policy", "compact,delete")
       properties.put("segment.bytes", String.valueOf(segmentBytes))
-      properties.put("retention.ms", String.valueOf(TimeUnit.DAYS.toMillis(14)))
+      properties.put("retention.ms", String.valueOf(TimeUnit.DAYS.toMillis(28)))
       properties.put("max.message.bytes", String.valueOf(maxMessageBytes))
     } else {
       properties.put("cleanup.policy", "compact,delete")
