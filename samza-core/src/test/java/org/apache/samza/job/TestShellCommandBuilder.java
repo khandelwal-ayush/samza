@@ -60,6 +60,7 @@ public class TestShellCommandBuilder {
     Config config = new MapConfig(new ImmutableMap.Builder<String, String>()
         .put(ShellCommandConfig.COMMAND_SHELL_EXECUTE, "foo")
         .put(ShellCommandConfig.TASK_JVM_OPTS, "-Xmx4g")
+        .put(ShellCommandConfig.WORKER_JVM_OPTS, "-Xmx2g")
         .put(ShellCommandConfig.ADDITIONAL_CLASSPATH_DIR, "/path/to/additional/classpath")
         .put(ShellCommandConfig.TASK_JAVA_HOME, "/path/to/java/home")
         .build());
@@ -71,6 +72,7 @@ public class TestShellCommandBuilder {
         .put(ShellCommandConfig.ENV_CONTAINER_ID, "1")
         .put(ShellCommandConfig.ENV_COORDINATOR_URL, URL_STRING)
         .put(ShellCommandConfig.ENV_JAVA_OPTS, "-Xmx4g")
+        .put(ShellCommandConfig.WORKER_JVM_OPTS, "-Xmx2g")
         .put(ShellCommandConfig.ENV_ADDITIONAL_CLASSPATH_DIR, "/path/to/additional/classpath")
         .put(ShellCommandConfig.ENV_JAVA_HOME, "/path/to/java/home")
         .build();
