@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.val;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.MapConfig;
 import org.apache.samza.job.model.ContainerModel;
@@ -44,6 +45,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 
 
@@ -63,6 +65,8 @@ public class TestDiagnosticsManager {
   private static final int CONTAINER_MB = 1024;
   private static final int CONTAINER_THREAD_POOL_SIZE = 2;
   private static final long MAX_HEAP_SIZE = 900;
+  private static final long RUNNER_HEAP_SIZE = 400;
+  private static final long WORKER_HEAP_SIZE = 500;
   private static final int NUM_PERSISTENT_STORES = 2;
   private static final int CONTAINER_NUM_CORES = 2;
   private static final boolean AUTOSIZING_ENABLED = false;
@@ -99,7 +103,7 @@ public class TestDiagnosticsManager {
         new DiagnosticsManager(JOB_NAME, JOB_ID, containerModels, CONTAINER_MB, CONTAINER_NUM_CORES,
             NUM_PERSISTENT_STORES, MAX_HEAP_SIZE, CONTAINER_THREAD_POOL_SIZE, "0", EXECUTION_ENV_CONTAINER_ID,
             SAMZA_EPOCH_ID, TASK_CLASS_VERSION, SAMZA_VERSION, HOSTNAME, diagnosticsSystemStream,
-            mockSystemProducer, Duration.ofSeconds(1), mockExecutorService, AUTOSIZING_ENABLED, config, this.clock);
+            mockSystemProducer, Duration.ofSeconds(1), mockExecutorService, AUTOSIZING_ENABLED, config, this.clock, false, 0);
 
     exceptionEventList.forEach(
       diagnosticsExceptionEvent -> this.diagnosticsManager.addExceptionEvent(diagnosticsExceptionEvent));
@@ -114,7 +118,7 @@ public class TestDiagnosticsManager {
         new DiagnosticsManager(JOB_NAME, JOB_ID, containerModels, CONTAINER_MB, CONTAINER_NUM_CORES,
             NUM_PERSISTENT_STORES, MAX_HEAP_SIZE, CONTAINER_THREAD_POOL_SIZE, "0", EXECUTION_ENV_CONTAINER_ID,
             SAMZA_EPOCH_ID, TASK_CLASS_VERSION, SAMZA_VERSION, HOSTNAME, diagnosticsSystemStream,
-            mockSystemProducer, Duration.ofSeconds(1), mockExecutorService, AUTOSIZING_ENABLED, config, this.clock);
+            mockSystemProducer, Duration.ofSeconds(1), mockExecutorService, AUTOSIZING_ENABLED, config, this.clock, false, 0);
 
     diagnosticsManager.start();
 
@@ -133,7 +137,7 @@ public class TestDiagnosticsManager {
         new DiagnosticsManager(JOB_NAME, JOB_ID, containerModels, CONTAINER_MB, CONTAINER_NUM_CORES,
             NUM_PERSISTENT_STORES, MAX_HEAP_SIZE, CONTAINER_THREAD_POOL_SIZE, "0", EXECUTION_ENV_CONTAINER_ID,
             SAMZA_EPOCH_ID, TASK_CLASS_VERSION, SAMZA_VERSION, HOSTNAME, diagnosticsSystemStream,
-            mockSystemProducer, terminationDuration, mockExecutorService, AUTOSIZING_ENABLED, config, this.clock);
+            mockSystemProducer, terminationDuration, mockExecutorService, AUTOSIZING_ENABLED, config, this.clock, false, 0);
 
     diagnosticsManager.stop();
 
@@ -153,7 +157,7 @@ public class TestDiagnosticsManager {
         new DiagnosticsManager(JOB_NAME, JOB_ID, containerModels, CONTAINER_MB, CONTAINER_NUM_CORES,
             NUM_PERSISTENT_STORES, MAX_HEAP_SIZE, CONTAINER_THREAD_POOL_SIZE, "0", EXECUTION_ENV_CONTAINER_ID,
             SAMZA_EPOCH_ID, TASK_CLASS_VERSION, SAMZA_VERSION, HOSTNAME, diagnosticsSystemStream,
-            mockSystemProducer, terminationDuration, mockExecutorService, AUTOSIZING_ENABLED, config, this.clock);
+            mockSystemProducer, terminationDuration, mockExecutorService, AUTOSIZING_ENABLED, config, this.clock, false, 0);
 
     diagnosticsManager.stop();
 
@@ -181,7 +185,7 @@ public class TestDiagnosticsManager {
 
     Assert.assertEquals("One message should have been published", 1, mockSystemProducer.getEnvelopeList().size());
     OutgoingMessageEnvelope outgoingMessageEnvelope = mockSystemProducer.getEnvelopeList().get(0);
-    validateMetricsHeader(outgoingMessageEnvelope, FIRST_SEND_TIME);
+    validateMetricsHeader(outgoingMessageEnvelope, FIRST_SEND_TIME, false);
     validateOutgoingMessageEnvelope(outgoingMessageEnvelope);
   }
 
@@ -196,12 +200,12 @@ public class TestDiagnosticsManager {
 
     // Validate the first message
     OutgoingMessageEnvelope outgoingMessageEnvelope = mockSystemProducer.getEnvelopeList().get(0);
-    validateMetricsHeader(outgoingMessageEnvelope, FIRST_SEND_TIME);
+    validateMetricsHeader(outgoingMessageEnvelope, FIRST_SEND_TIME, false);
     validateOutgoingMessageEnvelope(outgoingMessageEnvelope);
 
     // Validate the second message's header
     outgoingMessageEnvelope = mockSystemProducer.getEnvelopeList().get(1);
-    validateMetricsHeader(outgoingMessageEnvelope, SECOND_SEND_TIME);
+    validateMetricsHeader(outgoingMessageEnvelope, SECOND_SEND_TIME, false);
 
     // Validate the second message's body (should be all empty except for the processor-stop-event)
     MetricsSnapshot metricsSnapshot =
@@ -230,12 +234,61 @@ public class TestDiagnosticsManager {
 
     // Validate the first message
     OutgoingMessageEnvelope outgoingMessageEnvelope = mockSystemProducer.getEnvelopeList().get(0);
-    validateMetricsHeader(outgoingMessageEnvelope, FIRST_SEND_TIME);
+    validateMetricsHeader(outgoingMessageEnvelope, FIRST_SEND_TIME, false);
     validateOutgoingMessageEnvelope(outgoingMessageEnvelope);
 
     // Validate the second message's header
     outgoingMessageEnvelope = mockSystemProducer.getEnvelopeList().get(1);
-    validateMetricsHeader(outgoingMessageEnvelope, SECOND_SEND_TIME);
+    validateMetricsHeader(outgoingMessageEnvelope, SECOND_SEND_TIME, false);
+
+    // Validate the second message's body (should be all empty except for the processor-stop-event)
+    MetricsSnapshot metricsSnapshot =
+        new MetricsSnapshotSerdeV2().fromBytes((byte[]) outgoingMessageEnvelope.getMessage());
+    DiagnosticsStreamMessage diagnosticsStreamMessage =
+        DiagnosticsStreamMessage.convertToDiagnosticsStreamMessage(metricsSnapshot);
+
+    Assert.assertNull(diagnosticsStreamMessage.getContainerMb());
+    Assert.assertEquals(Arrays.asList(diagnosticsExceptionEvent), diagnosticsStreamMessage.getExceptionEvents());
+    Assert.assertNull(diagnosticsStreamMessage.getProcessorStopEvents());
+    Assert.assertNull(diagnosticsStreamMessage.getContainerModels());
+    Assert.assertNull(diagnosticsStreamMessage.getContainerNumCores());
+    Assert.assertNull(diagnosticsStreamMessage.getNumPersistentStores());
+  }
+
+  @Test
+  public void testDiagnosticsManagerForPortableJobs() {
+    Clock clock = Mockito.mock(Clock.class);
+    Mockito.when(clock.currentTimeMillis()).thenReturn(RESET_TIME, FIRST_SEND_TIME, SECOND_SEND_TIME);
+
+    DiagnosticsManager diagnosticsManager = new DiagnosticsManager(JOB_NAME, JOB_ID, containerModels, CONTAINER_MB,
+        CONTAINER_NUM_CORES, NUM_PERSISTENT_STORES, RUNNER_HEAP_SIZE, CONTAINER_THREAD_POOL_SIZE, "0",
+        EXECUTION_ENV_CONTAINER_ID, SAMZA_EPOCH_ID, TASK_CLASS_VERSION, SAMZA_VERSION, HOSTNAME,
+        diagnosticsSystemStream, mockSystemProducer, Duration.ofSeconds(1), mockExecutorService, AUTOSIZING_ENABLED,
+        config, clock, true, WORKER_HEAP_SIZE);
+
+    Collection<DiagnosticsExceptionEvent> exceptionEventList = TestDiagnosticsStreamMessage.getExceptionList();
+    exceptionEventList.forEach(
+        diagnosticsExceptionEvent -> diagnosticsManager.addExceptionEvent(diagnosticsExceptionEvent));
+    diagnosticsManager.addProcessorStopEvent("0", EXECUTION_ENV_CONTAINER_ID, HOSTNAME, 101);
+
+    // Across two successive run() invocations two messages should be published if stop events are added
+    diagnosticsManager.start();
+    DiagnosticsExceptionEvent diagnosticsExceptionEvent =
+        new DiagnosticsExceptionEvent(System.currentTimeMillis(), new RuntimeException("exception"), new HashMap());
+    diagnosticsManager.addExceptionEvent(diagnosticsExceptionEvent);
+    diagnosticsManager.start();
+
+    Assert.assertEquals(
+        "Two messages should have been published", 2, mockSystemProducer.getEnvelopeList().size());
+
+    // Validate the first message
+    OutgoingMessageEnvelope outgoingMessageEnvelope = mockSystemProducer.getEnvelopeList().get(0);
+    validateMetricsHeader(outgoingMessageEnvelope, FIRST_SEND_TIME, true);
+    validateOutgoingMessageEnvelope(outgoingMessageEnvelope, true, exceptionEventList);
+
+    // Validate the second message's header
+    outgoingMessageEnvelope = mockSystemProducer.getEnvelopeList().get(1);
+    validateMetricsHeader(outgoingMessageEnvelope, SECOND_SEND_TIME, true);
 
     // Validate the second message's body (should be all empty except for the processor-stop-event)
     MetricsSnapshot metricsSnapshot =
@@ -256,8 +309,9 @@ public class TestDiagnosticsManager {
     this.diagnosticsManager.stop();
   }
 
-  private void validateMetricsHeader(OutgoingMessageEnvelope outgoingMessageEnvelope, long sendTime) {
-    // Validate the outgoing message
+  // Validate the outgoing message envelope's header
+  private void validateMetricsHeader(
+      OutgoingMessageEnvelope outgoingMessageEnvelope, long sendTime, boolean isPortableJob) {
 
     Assert.assertTrue(outgoingMessageEnvelope.getSystemStream().equals(diagnosticsSystemStream));
     MetricsSnapshot metricsSnapshot =
@@ -265,11 +319,24 @@ public class TestDiagnosticsManager {
 
     MetricsHeader expectedHeader = new MetricsHeader(JOB_NAME, JOB_ID, "samza-container-0", EXECUTION_ENV_CONTAINER_ID,
         Optional.of(SAMZA_EPOCH_ID), DiagnosticsManager.class.getName(), TASK_CLASS_VERSION, SAMZA_VERSION,
-        HOSTNAME, sendTime, RESET_TIME);
+        HOSTNAME, sendTime, RESET_TIME, Optional.of((short)1),
+        Optional.of(
+            new MetricsHeader.PortableJobFields(
+                isPortableJob,
+                MetricsHeader.PortableJobFields.ProcessType.Runner,
+                MetricsHeader.PORTABLE_JOB_RUNNER_PROCESS_ID)));
     Assert.assertEquals(expectedHeader, metricsSnapshot.getHeader());
   }
 
-  private void validateOutgoingMessageEnvelope(OutgoingMessageEnvelope outgoingMessageEnvelope) {
+  private void validateOutgoingMessageEnvelope(
+      OutgoingMessageEnvelope outgoingMessageEnvelope) {
+    validateOutgoingMessageEnvelope(outgoingMessageEnvelope, false, this.exceptionEventList);
+  }
+
+  private void validateOutgoingMessageEnvelope(
+      OutgoingMessageEnvelope outgoingMessageEnvelope,
+      boolean portable,
+      Collection<DiagnosticsExceptionEvent> exceptionEventList) {
     MetricsSnapshot metricsSnapshot =
         new MetricsSnapshotSerdeV2().fromBytes((byte[]) outgoingMessageEnvelope.getMessage());
 
@@ -277,8 +344,14 @@ public class TestDiagnosticsManager {
     DiagnosticsStreamMessage diagnosticsStreamMessage =
         DiagnosticsStreamMessage.convertToDiagnosticsStreamMessage(metricsSnapshot);
 
+    if (portable) {
+      Assert.assertEquals(RUNNER_HEAP_SIZE, diagnosticsStreamMessage.getMaxHeapSize().longValue());
+      Assert.assertEquals(WORKER_HEAP_SIZE, diagnosticsStreamMessage.getWorkerHeapSize().longValue());
+    } else {
+      Assert.assertEquals(MAX_HEAP_SIZE, diagnosticsStreamMessage.getMaxHeapSize().longValue());
+    }
+
     Assert.assertEquals(CONTAINER_MB, diagnosticsStreamMessage.getContainerMb().intValue());
-    Assert.assertEquals(MAX_HEAP_SIZE, diagnosticsStreamMessage.getMaxHeapSize().longValue());
     Assert.assertEquals(CONTAINER_THREAD_POOL_SIZE, diagnosticsStreamMessage.getContainerThreadPoolSize().intValue());
     Assert.assertEquals(exceptionEventList, diagnosticsStreamMessage.getExceptionEvents());
     Assert.assertEquals(diagnosticsStreamMessage.getProcessorStopEvents(), Arrays.asList(new ProcessorStopEvent("0",

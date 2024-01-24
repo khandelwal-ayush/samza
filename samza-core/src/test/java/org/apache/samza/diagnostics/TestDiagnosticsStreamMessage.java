@@ -152,6 +152,57 @@ public class TestDiagnosticsStreamMessage {
     Assert.assertEquals(convertedDiagnosticsStreamMessage, diagnosticsStreamMessage);
   }
 
+
+  /**
+   * Tests serialization and deserialization of a {@link DiagnosticsStreamMessage} for Portable Jobs
+   */
+  @Test
+  public void serdeTestForPortableJobs() {
+    MetricsHeader.PortableJobFields portableJobFields = new MetricsHeader.PortableJobFields(
+        true, MetricsHeader.PortableJobFields.ProcessType.Runner, "1033");
+
+    DiagnosticsStreamMessage diagnosticsStreamMessage =
+        new DiagnosticsStreamMessage(JOB_NAME, JOB_ID, CONTAINER_NAME, EXECUTION_ENV_CONTAINER_ID,
+            Optional.of(SAMZA_EPOCH_ID),
+            TASK_CLASS_VERSION, SAMZA_VERSION, HOSTNAME, timestamp, resetTimestamp,
+            Optional.of((short) 1), Optional.of(portableJobFields));
+
+    diagnosticsStreamMessage.addContainerMb(1024);
+    diagnosticsStreamMessage.addContainerNumCores(2);
+    diagnosticsStreamMessage.addNumPersistentStores(3);
+    diagnosticsStreamMessage.addConfig(config);
+    diagnosticsStreamMessage.addWorkerHeapSize(400L);
+    diagnosticsStreamMessage.addMaxHeapSize(300L);
+    diagnosticsStreamMessage.addProcessorStopEvents(getProcessorStopEventList());
+
+    Collection<DiagnosticsExceptionEvent> exceptionEventList = getExceptionList();
+    diagnosticsStreamMessage.addDiagnosticsExceptionEvents(exceptionEventList);
+    diagnosticsStreamMessage.addProcessorStopEvents(getProcessorStopEventList());
+    diagnosticsStreamMessage.addContainerModels(getSampleContainerModels());
+
+    MetricsSnapshot metricsSnapshot = diagnosticsStreamMessage.convertToMetricsSnapshot();
+    MetricsHeader expectedHeader = new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXECUTION_ENV_CONTAINER_ID,
+        Optional.of(SAMZA_EPOCH_ID), DiagnosticsManager.class.getName(), TASK_CLASS_VERSION, SAMZA_VERSION,
+        HOSTNAME, timestamp, resetTimestamp,
+        Optional.of(MetricsHeader.METRICS_SCHEMA_VERSION), Optional.of(portableJobFields));
+    Assert.assertEquals(metricsSnapshot.getHeader(), expectedHeader);
+
+    Map<String, Map<String, Object>> metricsMap = metricsSnapshot.getMetrics().getAsMap();
+    Assert.assertTrue(metricsMap.get("org.apache.samza.container.SamzaContainerMetrics").containsKey("exceptions"));
+    Assert.assertTrue(metricsMap.get(DiagnosticsManager.class.getName()).containsKey("containerModels"));
+    Assert.assertTrue(metricsMap.get(DiagnosticsManager.class.getName()).containsKey("numPersistentStores"));
+    Assert.assertTrue(metricsMap.get(DiagnosticsManager.class.getName()).containsKey("containerNumCores"));
+    Assert.assertTrue(metricsMap.get(DiagnosticsManager.class.getName()).containsKey("containerMemoryMb"));
+    Assert.assertTrue(metricsMap.get(DiagnosticsManager.class.getName()).containsKey("stopEvents"));
+    Assert.assertTrue(metricsMap.get(DiagnosticsManager.class.getName()).containsKey("config"));
+    Assert.assertTrue(metricsMap.get(DiagnosticsManager.class.getName()).containsKey("maxHeap"));
+    Assert.assertTrue(metricsMap.get(DiagnosticsManager.class.getName()).containsKey("workerHeap"));
+
+    DiagnosticsStreamMessage convertedDiagnosticsStreamMessage =
+        DiagnosticsStreamMessage.convertToDiagnosticsStreamMessage(metricsSnapshot);
+    Assert.assertEquals(convertedDiagnosticsStreamMessage, diagnosticsStreamMessage);
+  }
+
   @Test
   public void testSerdeEmptySamzaEpochIdInHeader() {
     DiagnosticsStreamMessage diagnosticsStreamMessage = getDiagnosticsStreamMessage(Optional.empty());
