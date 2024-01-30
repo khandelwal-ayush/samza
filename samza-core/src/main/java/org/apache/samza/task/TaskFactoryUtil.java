@@ -70,14 +70,7 @@ public class TaskFactoryUtil {
    * @return {@link TaskFactory} object defined by {@code appDesc}
    */
   public static TaskFactory getTaskFactory(ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc) {
-    if (appDesc instanceof TaskApplicationDescriptorImpl) {
-      return ((TaskApplicationDescriptorImpl) appDesc).getTaskFactory();
-    } else if (appDesc instanceof StreamApplicationDescriptorImpl) {
-      return (AsyncStreamTaskFactory) () -> new StreamOperatorTask(
-          ((StreamApplicationDescriptorImpl) appDesc).getOperatorSpecGraph());
-    }
-    throw new IllegalArgumentException(String.format("ApplicationDescriptorImpl has to be either TaskApplicationDescriptorImpl or "
-        + "StreamApplicationDescriptorImpl. class %s is not supported", appDesc.getClass().getName()));
+    return getTaskFactoryWithConfig(appDesc, appDesc.getConfig());
   }
 
   /**
@@ -100,7 +93,8 @@ public class TaskFactoryUtil {
     }
 
     if (isAsyncTaskClass) {
-      return (AsyncStreamTaskFactory) () -> {
+      TaskFactory baseTaskFactory =
+       (AsyncStreamTaskFactory) () -> {
         try {
           return (AsyncStreamTask) Class.forName(taskClassName).newInstance();
         } catch (Throwable t) {
@@ -108,9 +102,10 @@ public class TaskFactoryUtil {
           throw new SamzaException(String.format("Error loading AsyncStreamTask class: %s", taskClassName), t);
         }
       };
+      return TaskWrapperUtil.wrapTaskFactory(baseTaskFactory);
     }
 
-    return (StreamTaskFactory) () -> {
+    TaskFactory baseTaskFactory = (StreamTaskFactory) () -> {
       try {
         return (StreamTask) Class.forName(taskClassName).newInstance();
       } catch (Throwable t) {
@@ -118,6 +113,7 @@ public class TaskFactoryUtil {
         throw new SamzaException(String.format("Error loading StreamTask class: %s", taskClassName), t);
       }
     };
+    return TaskWrapperUtil.wrapTaskFactory(baseTaskFactory);
   }
 
   /**
