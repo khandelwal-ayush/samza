@@ -18,7 +18,6 @@
  */
 package org.apache.samza.application;
 
-import com.linkedin.samza.task.wrapper.LiStreamTask;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.samza.config.ApplicationConfig;
@@ -71,7 +70,7 @@ public class TestApplicationUtil {
     SamzaApplication app = ApplicationUtil.fromConfig(config);
     assertTrue(app instanceof TaskApplication);
     TaskApplicationDescriptorImpl appSpec = new TaskApplicationDescriptorImpl((TaskApplication) app, config);
-    assertTrue(appSpec.getTaskFactory().createInstance() instanceof LiStreamTask);
+    assertTrue(appSpec.getTaskFactory().createInstance() instanceof MockStreamTask);
   }
 
   @Test(expected = ConfigException.class)

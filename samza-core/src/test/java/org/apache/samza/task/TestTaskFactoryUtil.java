@@ -18,25 +18,18 @@
  */
 package org.apache.samza.task;
 
-import com.linkedin.samza.task.wrapper.LiAsyncStreamTask;
 import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.samza.task.wrapper.LiStreamTask;
 import org.apache.samza.SamzaException;
-import org.apache.samza.application.ApplicationUtil;
-import org.apache.samza.application.SamzaApplication;
-import org.apache.samza.application.TaskApplication;
 import org.apache.samza.application.descriptors.ApplicationDescriptorImpl;
 import org.apache.samza.application.descriptors.StreamApplicationDescriptorImpl;
 import org.apache.samza.application.descriptors.TaskApplicationDescriptorImpl;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.ConfigException;
 import org.apache.samza.config.MapConfig;
-import org.apache.samza.config.TaskConfig;
 import org.apache.samza.operators.OperatorSpecGraph;
 import org.junit.Test;
 
@@ -56,7 +49,7 @@ public class TestTaskFactoryUtil {
   public void testStreamTaskClass() {
     TaskFactory retFactory = TaskFactoryUtil.getTaskFactory(MockStreamTask.class.getName());
     assertTrue(retFactory instanceof StreamTaskFactory);
-    assertTrue(((StreamTaskFactory) retFactory).createInstance() instanceof LiStreamTask);
+    assertTrue(((StreamTaskFactory) retFactory).createInstance() instanceof MockStreamTask);
 
     try {
       TaskFactoryUtil.getTaskFactory("no.such.class");
@@ -70,7 +63,7 @@ public class TestTaskFactoryUtil {
   public void testAsyncStreamTask() {
     TaskFactory retFactory = TaskFactoryUtil.getTaskFactory(MockAsyncStreamTask.class.getName());
     assertTrue(retFactory instanceof AsyncStreamTaskFactory);
-    assertTrue(((AsyncStreamTaskFactory) retFactory).createInstance() instanceof LiAsyncStreamTask);
+    assertTrue(((AsyncStreamTaskFactory) retFactory).createInstance() instanceof MockAsyncStreamTask);
 
     try {
       TaskFactoryUtil.getTaskFactory("no.such.class");
@@ -114,11 +107,10 @@ public class TestTaskFactoryUtil {
     StreamApplicationDescriptorImpl mockStreamApp = mock(StreamApplicationDescriptorImpl.class);
     OperatorSpecGraph mockSpecGraph = mock(OperatorSpecGraph.class);
     when(mockStreamApp.getOperatorSpecGraph()).thenReturn(mockSpecGraph);
-    when(mockStreamApp.getConfig()).thenReturn(new MapConfig());
     TaskFactory streamTaskFactory = TaskFactoryUtil.getTaskFactory(mockStreamApp);
     assertTrue(streamTaskFactory instanceof AsyncStreamTaskFactory);
     AsyncStreamTask streamTask = ((AsyncStreamTaskFactory) streamTaskFactory).createInstance();
-    assertTrue(streamTask instanceof LiAsyncStreamTask);
+    assertTrue(streamTask instanceof StreamOperatorTask);
     verify(mockSpecGraph).clone();
   }
 
@@ -128,7 +120,6 @@ public class TestTaskFactoryUtil {
     TaskApplicationDescriptorImpl mockTaskApp = mock(TaskApplicationDescriptorImpl.class);
     TaskFactory mockTaskFactory = mock(TaskFactory.class);
     when(mockTaskApp.getTaskFactory()).thenReturn(mockTaskFactory);
-    when(mockTaskApp.getConfig()).thenReturn(buildConfig(false));
     TaskFactory taskFactory = TaskFactoryUtil.getTaskFactory(mockTaskApp);
     assertEquals(mockTaskFactory, taskFactory);
   }
