@@ -30,7 +30,6 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.val;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.MapConfig;
 import org.apache.samza.job.model.ContainerModel;
@@ -45,7 +44,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 
 
@@ -317,14 +315,13 @@ public class TestDiagnosticsManager {
     MetricsSnapshot metricsSnapshot =
         new MetricsSnapshotSerdeV2().fromBytes((byte[]) outgoingMessageEnvelope.getMessage());
 
-    MetricsHeader expectedHeader = new MetricsHeader(JOB_NAME, JOB_ID, "samza-container-0", EXECUTION_ENV_CONTAINER_ID,
-        Optional.of(SAMZA_EPOCH_ID), DiagnosticsManager.class.getName(), TASK_CLASS_VERSION, SAMZA_VERSION,
-        HOSTNAME, sendTime, RESET_TIME, Optional.of((short)1),
-        Optional.of(
-            new MetricsHeader.PortableJobFields(
-                isPortableJob,
-                MetricsHeader.PortableJobFields.ProcessType.Runner,
-                MetricsHeader.PORTABLE_JOB_RUNNER_PROCESS_ID)));
+    MetricsHeader expectedHeader;
+
+    expectedHeader = new MetricsHeader(JOB_NAME, JOB_ID, "samza-container-0", EXECUTION_ENV_CONTAINER_ID,
+      Optional.of(SAMZA_EPOCH_ID), DiagnosticsManager.class.getName(), TASK_CLASS_VERSION, SAMZA_VERSION,
+      HOSTNAME, sendTime, RESET_TIME,
+      Optional.of(isPortableJob), Optional.of(DiagnosticsManager.PortableJobRunnerProcessId));
+
     Assert.assertEquals(expectedHeader, metricsSnapshot.getHeader());
   }
 

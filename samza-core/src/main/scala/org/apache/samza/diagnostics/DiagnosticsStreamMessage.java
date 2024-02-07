@@ -78,11 +78,11 @@ public class DiagnosticsStreamMessage {
 
   public DiagnosticsStreamMessage(String jobName, String jobId, String containerName, String executionEnvContainerId,
       Optional<String> samzaEpochId, String taskClassVersion, String samzaVersion, String hostname,
-      long timestamp, long resetTimestamp,
-      Optional<Short> schemaVersion, Optional<MetricsHeader.PortableJobFields> portableJobFields) {
+      long timestamp, long resetTimestamp, Optional<Boolean> isPortableJob,
+      Optional<String> portableJobProcessId) {
     this.metricsHeader = new MetricsHeader(jobName, jobId, containerName, executionEnvContainerId, samzaEpochId,
         DiagnosticsManager.class.getName(), taskClassVersion, samzaVersion, hostname, timestamp, resetTimestamp,
-        schemaVersion, portableJobFields);
+        isPortableJob, portableJobProcessId);
     this.metricsMessage = new HashMap<>();
   }
 
@@ -124,17 +124,9 @@ public class DiagnosticsStreamMessage {
    * @param workerHeapSize the parameter value.
    */
   public void addWorkerHeapSize(Long workerHeapSize) {
-    if (!this.metricsHeader.getSchemaVersion().isPresent()
-      || this.metricsHeader.getSchemaVersion().get() != MetricsHeader.METRICS_SCHEMA_VERSION) {
-      LOG.error(
-          "Attempting to set worker heap size in Metric Snapshot with schema version {}",
-          this.metricsHeader.getSchemaVersion().orElse(null));
-      return;
-    }
-
-    if (!this.metricsHeader.getPortableJobFields().isPresent()
-      || !this.metricsHeader.getPortableJobFields().get().isPortableJob) {
-      LOG.error("Attempting to set worker heap size in Metric Snapshot for a NON portable job");
+    if (!this.metricsHeader.isPortableJob().isPresent()
+      || !this.metricsHeader.isPortableJob().get()) {
+      LOG.error("Attempting to set worker heap size in Metric Snapshot for a non-portable job");
       return;
     }
 
@@ -293,7 +285,7 @@ public class DiagnosticsStreamMessage {
             metricsSnapshot.getHeader().getSamzaEpochId(), metricsSnapshot.getHeader().getVersion(),
             metricsSnapshot.getHeader().getSamzaVersion(), metricsSnapshot.getHeader().getHost(),
             metricsSnapshot.getHeader().getTime(), metricsSnapshot.getHeader().getResetTime(),
-            metricsSnapshot.getHeader().getSchemaVersion(), metricsSnapshot.getHeader().getPortableJobFields());
+            metricsSnapshot.getHeader().isPortableJob(), metricsSnapshot.getHeader().getPortableJobProcessId());
 
     Map<String, Map<String, Object>> metricsMap = metricsSnapshot.getMetrics().getAsMap();
     Map<String, Object> diagnosticsManagerGroupMap = metricsMap.get(GROUP_NAME_FOR_DIAGNOSTICS_MANAGER);
@@ -313,9 +305,15 @@ public class DiagnosticsStreamMessage {
       diagnosticsStreamMessage.addConfig(new MapConfig((Map<String, String>) diagnosticsManagerGroupMap.get(CONFIG_METRIC_NAME)));
 
       // Add worker heap size for portable job
-      if (metricsSnapshot.getHeader().getPortableJobFields().isPresent()
-        && metricsSnapshot.getHeader().getPortableJobFields().get().isPortableJob) {
-        diagnosticsStreamMessage.addWorkerHeapSize((Long) diagnosticsManagerGroupMap.get(CONTAINER_WORKER_CONFIGURED_HEAP_METRIC_NAME));
+      if (metricsSnapshot.getHeader().isPortableJob().isPresent()
+          && metricsSnapshot.getHeader().isPortableJob().get()) {
+
+        if (diagnosticsManagerGroupMap.containsKey(CONTAINER_WORKER_CONFIGURED_HEAP_METRIC_NAME)) {
+          diagnosticsStreamMessage.addWorkerHeapSize(
+              (Long) diagnosticsManagerGroupMap.get(CONTAINER_WORKER_CONFIGURED_HEAP_METRIC_NAME));
+        } else {
+          LOG.error("Worker heap size not found in metrics snapshot for portable job");
+        }
       }
     }
 

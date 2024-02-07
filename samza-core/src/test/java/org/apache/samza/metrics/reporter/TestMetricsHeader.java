@@ -39,20 +39,14 @@ public class TestMetricsHeader {
   private static final long TIME = 100;
   private static final long RESET_TIME = 10;
   private static final Boolean IS_PORTABLE_JOB = true;
-  private static final MetricsHeader.PortableJobFields.ProcessType PORTABLE_JOB_PROCESS_TYPE
-      = MetricsHeader.PortableJobFields.ProcessType.Runner;
-  private static final String PORTABLE_JOB_PROCESS_ID = "1033";
+  private static final String PORTABLE_JOB_PROCESS_ID = "process-12345";
 
   @Test
   public void testGetAsMap() {
-
-    short schemaVersion = 1;
-    MetricsHeader.PortableJobFields portableJobFields = new MetricsHeader.PortableJobFields(
-        IS_PORTABLE_JOB, PORTABLE_JOB_PROCESS_TYPE, PORTABLE_JOB_PROCESS_ID);
-
     MetricsHeader metricsHeader =
         new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.of(SAMZA_EPOCH_ID),
-            SOURCE, VERSION, SAMZA_VERSION, HOST, TIME, RESET_TIME, Optional.of(schemaVersion), Optional.of(portableJobFields));
+            SOURCE, VERSION, SAMZA_VERSION, HOST, TIME, RESET_TIME,
+            Optional.of(IS_PORTABLE_JOB), Optional.of(PORTABLE_JOB_PROCESS_ID));
     Map<String, Object> expected = new HashMap<>();
     expected.put("job-name", JOB_NAME);
     expected.put("job-id", JOB_ID);
@@ -65,34 +59,31 @@ public class TestMetricsHeader {
     expected.put("host", HOST);
     expected.put("time", TIME);
     expected.put("reset-time", RESET_TIME);
-    expected.put("metrics-schema-version", schemaVersion);
-    expected.put("portable-job-fields", portableJobFields);
+    expected.put("is-portable-job", IS_PORTABLE_JOB);
+    expected.put("portable-job-process-id", PORTABLE_JOB_PROCESS_ID);
     assertEquals(expected, metricsHeader.getAsMap());
 
     // test with empty samza epoch id
     metricsHeader =
-        new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.empty(), SOURCE, VERSION,
-            SAMZA_VERSION, HOST, TIME, RESET_TIME, Optional.of((short)1), Optional.of(portableJobFields));
+        new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.empty(),
+            SOURCE, VERSION, SAMZA_VERSION, HOST, TIME, RESET_TIME,
+            Optional.of(IS_PORTABLE_JOB), Optional.of(PORTABLE_JOB_PROCESS_ID));
     expected.remove("samza-epoch-id");
     assertEquals(expected, metricsHeader.getAsMap());
 
     // test with empty metrics schema version and portable fields
     metricsHeader =
-        new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.empty(), SOURCE, VERSION,
-            SAMZA_VERSION, HOST, TIME, RESET_TIME, Optional.empty(), Optional.empty());
+        new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.empty(),
+            SOURCE, VERSION, SAMZA_VERSION, HOST, TIME, RESET_TIME,
+            Optional.empty(), Optional.empty());
 
-    expected.remove("metrics-schema-version");
-    expected.remove("portable-job-fields");
+    expected.remove("is-portable-job");
+    expected.remove("portable-job-process-id");
     assertEquals(expected, metricsHeader.getAsMap());
   }
 
   @Test
   public void testFromMap() {
-
-    Optional<Short> schemaVersion = Optional.of((short)1);
-    MetricsHeader.PortableJobFields portableJobFields = new MetricsHeader.PortableJobFields(
-        IS_PORTABLE_JOB, PORTABLE_JOB_PROCESS_TYPE, PORTABLE_JOB_PROCESS_ID);
-
     Map<String, Object> map = new HashMap<>();
     map.put("job-name", JOB_NAME);
     map.put("job-id", JOB_ID);
@@ -105,29 +96,31 @@ public class TestMetricsHeader {
     map.put("host", HOST);
     map.put("time", TIME);
     map.put("reset-time", RESET_TIME);
-    map.put("metrics-schema-version", (short) 1);
-    map.put("portable-job-fields", portableJobFields);
+    map.put("is-portable-job", IS_PORTABLE_JOB);
+    map.put("portable-job-process-id", PORTABLE_JOB_PROCESS_ID);
 
     MetricsHeader expected =
         new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.of(SAMZA_EPOCH_ID),
             SOURCE, VERSION, SAMZA_VERSION, HOST, TIME, RESET_TIME,
-            schemaVersion, Optional.of(portableJobFields));
+            Optional.of(IS_PORTABLE_JOB), Optional.of(PORTABLE_JOB_PROCESS_ID));
     MetricsHeader actual = MetricsHeader.fromMap(map);
     assertEquals(expected, actual);
 
     // test with missing samza epoch id
     map.remove("samza-epoch-id");
     expected =
-        new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.empty(), SOURCE, VERSION,
-            SAMZA_VERSION, HOST, TIME, RESET_TIME, schemaVersion, Optional.of(portableJobFields));
+        new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.empty(),
+            SOURCE, VERSION, SAMZA_VERSION, HOST, TIME, RESET_TIME,
+            Optional.of(IS_PORTABLE_JOB), Optional.of(PORTABLE_JOB_PROCESS_ID));
     assertEquals(expected, MetricsHeader.fromMap(map));
 
     // test with missing portable job data
-    map.remove("metrics-schema-version");
-    map.remove("portable-job-fields");
+    map.remove("is-portable-job");
+    map.remove("portable-job-process-id");
     expected =
-        new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.empty(), SOURCE, VERSION,
-            SAMZA_VERSION, HOST, TIME, RESET_TIME, Optional.empty(), Optional.empty());
+        new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXEC_ENV_CONTAINER_ID, Optional.empty(),
+            SOURCE, VERSION, SAMZA_VERSION, HOST, TIME, RESET_TIME,
+            Optional.empty(), Optional.empty());
     assertEquals(expected, MetricsHeader.fromMap(map));
   }
 }

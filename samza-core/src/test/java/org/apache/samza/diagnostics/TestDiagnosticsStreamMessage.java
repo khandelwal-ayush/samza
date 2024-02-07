@@ -158,14 +158,12 @@ public class TestDiagnosticsStreamMessage {
    */
   @Test
   public void serdeTestForPortableJobs() {
-    MetricsHeader.PortableJobFields portableJobFields = new MetricsHeader.PortableJobFields(
-        true, MetricsHeader.PortableJobFields.ProcessType.Runner, "1033");
 
     DiagnosticsStreamMessage diagnosticsStreamMessage =
         new DiagnosticsStreamMessage(JOB_NAME, JOB_ID, CONTAINER_NAME, EXECUTION_ENV_CONTAINER_ID,
             Optional.of(SAMZA_EPOCH_ID),
             TASK_CLASS_VERSION, SAMZA_VERSION, HOSTNAME, timestamp, resetTimestamp,
-            Optional.of((short) 1), Optional.of(portableJobFields));
+            Optional.of(true), Optional.of(DiagnosticsManager.PortableJobRunnerProcessId));
 
     diagnosticsStreamMessage.addContainerMb(1024);
     diagnosticsStreamMessage.addContainerNumCores(2);
@@ -184,7 +182,7 @@ public class TestDiagnosticsStreamMessage {
     MetricsHeader expectedHeader = new MetricsHeader(JOB_NAME, JOB_ID, CONTAINER_NAME, EXECUTION_ENV_CONTAINER_ID,
         Optional.of(SAMZA_EPOCH_ID), DiagnosticsManager.class.getName(), TASK_CLASS_VERSION, SAMZA_VERSION,
         HOSTNAME, timestamp, resetTimestamp,
-        Optional.of(MetricsHeader.METRICS_SCHEMA_VERSION), Optional.of(portableJobFields));
+        Optional.of(true), Optional.of(DiagnosticsManager.PortableJobRunnerProcessId));
     Assert.assertEquals(metricsSnapshot.getHeader(), expectedHeader);
 
     Map<String, Map<String, Object>> metricsMap = metricsSnapshot.getMetrics().getAsMap();

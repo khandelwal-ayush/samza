@@ -52,6 +52,12 @@ import org.slf4j.LoggerFactory;
 public class DiagnosticsManager {
   private static final Logger LOG = LoggerFactory.getLogger(DiagnosticsManager.class);
 
+  /**
+   * Used to identify the process emitting the diagnostic stream message for Portable Jobs.
+   * For now, we emit only a single snapshot from runner. Later we expect worker to emit its own DiagnosticMessage.
+  */
+  public static final String PortableJobRunnerProcessId = "Runner";
+
   private static final Duration DEFAULT_PUBLISH_PERIOD = Duration.ofSeconds(60);
   // Period size for pushing data to the diagnostic stream
 
@@ -228,17 +234,12 @@ public class DiagnosticsManager {
     @Override
     public void run() {
       try {
-        MetricsHeader.PortableJobFields portableJobFields = new MetricsHeader.PortableJobFields(
-            isPortableJob,
-            MetricsHeader.PortableJobFields.ProcessType.Runner,
-            MetricsHeader.PORTABLE_JOB_RUNNER_PROCESS_ID);
-
         DiagnosticsStreamMessage diagnosticsStreamMessage =
             new DiagnosticsStreamMessage(jobName, jobId, "samza-container-" + containerId, executionEnvContainerId,
                 Optional.of(samzaEpochId), taskClassVersion, samzaVersion, hostname,
                 clock.currentTimeMillis(), resetTime.toEpochMilli(),
-                Optional.of(MetricsHeader.METRICS_SCHEMA_VERSION),
-                Optional.of(portableJobFields));
+                Optional.of(isPortableJob),
+                Optional.of(PortableJobRunnerProcessId));
 
         // Add job-related params to the message (if not already published)
         if (!jobParamsEmitted) {

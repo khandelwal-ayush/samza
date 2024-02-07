@@ -37,6 +37,9 @@ import static org.junit.Assert.assertEquals;
 
 
 public class TestMetricsSnapshotSerdeV2 {
+  // Process ID used for testing portable jobs schema
+  private static final String DummyPortableProcessId = "Dummy";
+
   @Test
   public void testSerializeThenDeserialize() {
     SamzaException samzaException = new SamzaException("this is a samza exception", new RuntimeException("cause"));
@@ -89,17 +92,138 @@ public class TestMetricsSnapshotSerdeV2 {
         expectedSeralizedSnapshot(samzaException, false, true).getBytes(StandardCharsets.UTF_8)));
   }
 
-  private static MetricsSnapshot metricsSnapshot(Exception exception, boolean includeSamzaEpochId) {
-    MetricsHeader metricsHeader;
-    if (includeSamzaEpochId) {
-      metricsHeader =
-          new MetricsHeader("jobName", "i001", "container 0", "test container ID", Optional.of("epoch-123"),
-              "source", "300.14.25.1", "1", "1", 1, 1);
+  @Test
+  public void testDeserializeRawPortableFieldsInHeader() {
+    SamzaException samzaException = new SamzaException("this is a samza exception", new RuntimeException("cause"));
+
+    // 1 - Test snapshot with leaving the portable fields empty.
+    MetricsSnapshot snapshotWithoutBoth =
+        metricsSnapshot(samzaException, true, true, null, null);
+    verifyMetricSnapshotForPortableFieldsWithAndWithoutExtraHeader(samzaException, snapshotWithoutBoth, true, null, null);
+
+    // 2 - Test snapshot with only leaving isPortableJob field empty.
+    MetricsSnapshot snapshotWithNullIsPortable =
+        metricsSnapshot(samzaException, true, true, null, DummyPortableProcessId);
+    verifyMetricSnapshotForPortableFieldsWithAndWithoutExtraHeader(samzaException, snapshotWithNullIsPortable, true, null, DummyPortableProcessId);
+
+    // 3 - Test snapshot with only leaving portableProcessId field empty.
+    MetricsSnapshot snapshotWithNullProcessId =
+        metricsSnapshot(samzaException, true, true, true, null);
+    verifyMetricSnapshotForPortableFieldsWithAndWithoutExtraHeader(samzaException, snapshotWithNullProcessId, true, true, null);
+
+    // 4 - Test snapshot with both portable fields filled.
+    MetricsSnapshot snapshotForPortableJob =
+        metricsSnapshot(samzaException, true, true, true, DummyPortableProcessId);
+    verifyMetricSnapshotForPortableFieldsWithAndWithoutExtraHeader(samzaException, snapshotForPortableJob, true, true, DummyPortableProcessId);
+
+    // 5 - Test snapshot with both portable fields filled and without Samza Epoch Id.
+    MetricsSnapshot snapshotForPortableJobWithoutEpoch =
+        metricsSnapshot(samzaException, false, true, true, DummyPortableProcessId);
+    verifyMetricSnapshotForPortableFieldsWithAndWithoutExtraHeader(samzaException, snapshotForPortableJobWithoutEpoch, false, true, DummyPortableProcessId);
+
+    // 6 - Test snapshot without any portable fields but including epoch ID
+    MetricsSnapshot snapshotForNonPortableJobWithEpoch =
+        metricsSnapshot(samzaException, true, false, null, null);
+    verifyMetricSnapshotForPortableFieldsWithAndWithoutExtraHeader(samzaException, snapshotForNonPortableJobWithEpoch, true, null, null);
+
+    // 7 - Test snapshot without any portable fields but including epoch ID
+    MetricsSnapshot snapshotForNonPortableJobWithoutEpoch =
+        metricsSnapshot(samzaException, false, false, null, null);
+    verifyMetricSnapshotForPortableFieldsWithAndWithoutExtraHeader(samzaException, snapshotForNonPortableJobWithoutEpoch, false, null, null);
+  }
+
+  private void verifyMetricSnapshotForPortableFieldsWithAndWithoutExtraHeader(
+      Exception samzaException,
+      MetricsSnapshot snapshotToVerify,
+      boolean includeSamzaEpochId,
+      Boolean isPortableJob,
+      String portableJobProcessId) {
+
+    MetricsSnapshotSerdeV2 metricsSnapshotSerde = new MetricsSnapshotSerdeV2();
+
+    // 1 - Verify without extra header
+    String expectedWithoutBothFields = expectedSeralizedSnapshot(
+        samzaException, includeSamzaEpochId, isPortableJob, portableJobProcessId, false);
+    assertEquals(
+        snapshotToVerify,
+        metricsSnapshotSerde.fromBytes(expectedWithoutBothFields.getBytes(StandardCharsets.UTF_8)));
+    // 2 - Verify with extra header
+    String expectedWithoutBothFieldsExtra = expectedSeralizedSnapshot(
+        samzaException, includeSamzaEpochId, isPortableJob, portableJobProcessId, true);
+    assertEquals(
+        snapshotToVerify,
+        metricsSnapshotSerde.fromBytes(expectedWithoutBothFieldsExtra.getBytes(StandardCharsets.UTF_8)));
+  }
+
+  @Test
+  public void testPortableJobsSchemaUsingLatestSchema() {
+    // ARRANGE
+    MetricsSnapshotSerdeV2 metricsSnapshotSerde = new MetricsSnapshotSerdeV2();
+    SamzaException samzaException = new SamzaException("this is a samza exception", new RuntimeException("cause"));
+    MetricsSnapshot metricsSnapshot = metricsSnapshot(
+        samzaException, true, true, true, DummyPortableProcessId);
+
+    // 1) Verify without extra header
+    String expectedString = expectedSeralizedSnapshot(samzaException, true, true, DummyPortableProcessId, false);
+    byte[] expectedBytes = expectedString.getBytes(StandardCharsets.UTF_8);
+    MetricsSnapshot expectedSnapshot = metricsSnapshotSerde.fromBytes(expectedBytes);
+    assertEquals(expectedSnapshot, metricsSnapshot);
+
+    // 2) Verify with extra header
+    expectedString = expectedSeralizedSnapshot(samzaException, true, true, DummyPortableProcessId, true);
+    expectedBytes = expectedString.getBytes(StandardCharsets.UTF_8);
+    expectedSnapshot = metricsSnapshotSerde.fromBytes(expectedBytes);
+    assertEquals(expectedSnapshot, metricsSnapshot);
+  }
+
+  /**
+   * Create dummy Metric Header for testing
+   * @param includePortableJobFields Whether to include latest schema updates to support portable jobs
+   * @param includeSamzaEpochId Include Samza Epoch Id
+   * @param isPortableJob Whether it is a portable job. Set only if `includePortableJobFields` is set to true.
+   * @param portableJobProcessId Process ID for portable job. Set only if `includePortableJobFields` is set to true.
+   * @return Dummy Metric Header
+   */
+  private static MetricsHeader createMetricsHeader(
+      boolean includeSamzaEpochId,
+      boolean includePortableJobFields,
+      Boolean isPortableJob,
+      String portableJobProcessId) {
+    if (!includeSamzaEpochId && !includePortableJobFields) {
+      return new MetricsHeader(
+          "jobName", "i001", "container 0", "test container ID",
+          "source", "300.14.25.1", "1", "1", 1, 1);
+    } else if (!includePortableJobFields) {
+      return new MetricsHeader("jobName", "i001", "container 0", "test container ID",
+          Optional.of("epoch-123"), "source", "300.14.25.1", "1", "1", 1, 1);
     } else {
-      metricsHeader =
-          new MetricsHeader("jobName", "i001", "container 0", "test container ID", "source", "300.14.25.1", "1", "1", 1,
-              1);
+      return new MetricsHeader("jobName", "i001", "container 0", "test container ID",
+          includeSamzaEpochId
+              ? Optional.of("epoch-123")
+              : Optional.empty(),
+          "source", "300.14.25.1", "1", "1", 1, 1,
+          isPortableJob != null
+              ? Optional.of(isPortableJob)
+              : Optional.empty(),
+          portableJobProcessId != null
+              ? Optional.of(portableJobProcessId)
+              : Optional.empty());
     }
+  }
+
+  private static MetricsSnapshot metricsSnapshot(
+      Exception exception, boolean includeSamzaEpochId) {
+    return metricsSnapshot(exception, includeSamzaEpochId, false, false, null);
+  }
+
+    private static MetricsSnapshot metricsSnapshot(
+        Exception exception,
+        boolean includeSamzaEpochId,
+        boolean includePortableJobFields,
+        Boolean isPortableJob,
+        String portableJobProcessId) {
+    MetricsHeader metricsHeader = createMetricsHeader(
+        includeSamzaEpochId, includePortableJobFields, isPortableJob, portableJobProcessId);
     BoundedList<DiagnosticsExceptionEvent> boundedList = new BoundedList<>("exceptions");
     DiagnosticsExceptionEvent diagnosticsExceptionEvent = new DiagnosticsExceptionEvent(1, exception, new HashMap<>());
     boundedList.add(diagnosticsExceptionEvent);
@@ -121,12 +245,29 @@ public class TestMetricsSnapshotSerdeV2 {
    */
   private static String expectedSeralizedSnapshot(Exception exception, boolean includeSamzaEpochId,
       boolean includeExtraHeaderField) {
+    return expectedSeralizedSnapshot(
+        exception, includeSamzaEpochId, null, null, includeExtraHeaderField);
+  }
+
+  private static String expectedSeralizedSnapshot(Exception exception, boolean includeSamzaEpochId,
+      Boolean isPortableJob, String portableJobProcessId,
+      boolean includeExtraHeaderField) {
     String stackTrace = ExceptionUtils.getStackTrace(exception);
     String serializedSnapshot =
         "{\"header\":[\"java.util.HashMap\",{\"job-id\":\"i001\",\"exec-env-container-id\":\"test container ID\",";
+
     if (includeSamzaEpochId) {
       serializedSnapshot += "\"samza-epoch-id\":\"epoch-123\",";
     }
+
+    if (isPortableJob != null) {
+      serializedSnapshot += "\"is-portable-job\":[\"java.lang.Boolean\"," + isPortableJob + "],";
+    }
+
+    if (portableJobProcessId != null) {
+      serializedSnapshot += "\"portable-job-process-id\":\"" + portableJobProcessId + "\",";
+    }
+
     if (includeExtraHeaderField) {
       serializedSnapshot += "\"extra-header-field\":\"extra header value\",";
     }
@@ -143,4 +284,6 @@ public class TestMetricsSnapshotSerdeV2 {
             + "[\"java.util.HashMap\",{\"commit-calls\":1}]}]}";
     return serializedSnapshot;
   }
+
+
 }

@@ -19,6 +19,7 @@
 
 package org.apache.samza.serializers;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +36,7 @@ public class MetricsSnapshotSerdeV2 implements Serde<MetricsSnapshot> {
 
   public MetricsSnapshotSerdeV2() {
     objectMapper = new ObjectMapper();
+    objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     objectMapper.enableDefaultTyping(ObjectMapper.DefaultTyping.OBJECT_AND_NON_CONCRETE);
   }
 
