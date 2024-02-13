@@ -27,6 +27,8 @@ import java.util.Objects;
 import java.util.Optional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.MapConfig;
 import org.apache.samza.job.model.ContainerModel;
@@ -186,6 +188,22 @@ public class DiagnosticsStreamMessage {
    * @param config the config to add.
    */
   public void addConfig(Config config) {
+
+    if (metricsHeader.isPortableJob().isPresent() && metricsHeader.isPortableJob().get()) {
+
+      MapConfig cfg = new MapConfig(config);
+
+      Set<Map.Entry<String, String>> entrySet = cfg.entrySet();
+      if (entrySet.removeIf(entry
+          -> entry.getKey().contains("beamPipelineOptions")
+          || entry.getKey().contains("beamJobInfo")
+          || entry.getKey().contains("beamPipelinProto"))) {
+        LOG.debug("Removed serialized beam properties from portable job's config");
+      }
+
+      config = new MapConfig(entrySet.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+    }
+
     addToMetricsMessage(GROUP_NAME_FOR_DIAGNOSTICS_MANAGER, CONFIG_METRIC_NAME, (Map<String, String>) config);
   }
 
