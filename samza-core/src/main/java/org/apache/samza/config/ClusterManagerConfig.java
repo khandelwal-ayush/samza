@@ -210,13 +210,8 @@ public class ClusterManagerConfig extends MapConfig {
     if (containsKey(JobConfig.JOB_AUTOSIZING_WORKER_MAX_HEAP_MB) && new JobConfig(this).getAutosizingEnabled()) {
       return getLong(JobConfig.JOB_AUTOSIZING_WORKER_MAX_HEAP_MB) * BYTES_PER_MB;
     } else {
-      Util.getMaxHeapSizeBytes(get(ShellCommandConfig.WORKER_JVM_OPTS, ""));
+      return Util.getMaxHeapSizeBytes(get(ShellCommandConfig.WORKER_JVM_OPTS, ""));
     }
-
-    log.warn(
-        "Portable worker max heap size requested for a job which does not have auto-sizing enabled."
-            + " Returning 0.");
-    return 0;
   }
 
   public boolean getHostAffinityEnabled() {
