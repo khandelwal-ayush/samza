@@ -26,6 +26,7 @@ import org.apache.samza.config.RunLoopConfig;
 import scala.collection.JavaConversions;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -118,6 +119,7 @@ public class SideInputsManager {
       Map<String, SystemStream> changelogSystemStreams,
       Map<String, SystemStream> activeTaskChangelogSystemStreams,
       Map<String, StorageEngineFactory<Object, Object>> storageEngineFactories,
+      Set<Path> storeDirectoryPaths,
       ContainerModel containerModel, JobContext jobContext, ContainerContext containerContext,
       SamzaContainerMetrics samzaContainerMetrics,
       Map<TaskName, TaskInstanceMetrics> taskInstanceMetrics,
@@ -145,7 +147,8 @@ public class SideInputsManager {
     // create side input taskStores for all tasks in the containerModel and each store in storageEngineFactories
     this.sideInputStores = ContainerStorageManagerUtil.createTaskStores(
         sideInputStoreNames, storageEngineFactories, sideInputStoreNames,
-        activeTaskChangelogSystemStreams, containerModel, jobContext, containerContext, serdes,
+        activeTaskChangelogSystemStreams, storeDirectoryPaths,
+        containerModel, jobContext, containerContext, serdes,
         samzaContainerMetrics, taskInstanceMetrics, taskInstanceCollectors, storageManagerUtil,
         loggedStoreBaseDirectory, nonLoggedStoreBaseDirectory, config);
 
